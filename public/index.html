@@ -11,40 +11,301 @@
     .eyebrow { color: #8ad8df; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
     h1 { margin: 16px 0; font-size: clamp(30px, 7vw, 48px); line-height: 1.2; }
     p { font-size: 17px; line-height: 1.7; color: #bfd0e5; }
-    .notice { margin: 26px 0; padding: 18px; border: 1px solid #d07384; border-radius: 14px; color: #ffe3e8; background: #612a3544; }
-    ul { list-style: none; display: grid; gap: 12px; padding: 0; }
-    li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; }
-    strong { display: block; font-size: 18px; margin-bottom: 5px; }
-    li span { color: #bfd0e5; }
+    .notice {
+      margin: 26px 0;
+      padding: 18px;
+      border: 1px solid #d07384;
+      border-radius: 14px;
+      color: #ffe3e8;
+      background: #612a3544;
+    }
+
+    .auth {
+      margin: 26px 0;
+      padding: 20px;
+      border: 1px solid #51667c;
+      border-radius: 14px;
+      background: #162638;
+    }
+
+    .auth h2 {
+      margin-top: 0;
+    }
+
+    .auth form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .auth label {
+      display: grid;
+      gap: 6px;
+      color: #bfd0e5;
+    }
+
+    .auth input,
+    .auth button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 9px;
+      border: 1px solid #51667c;
+      background: #101a28;
+      color: #ecf4ff;
+      font: inherit;
+    }
+
+    .auth button {
+      cursor: pointer;
+      background: #24445a;
+    }
+
+    .auth button:hover {
+      background: #2d5872;
+    }
+
+    .status {
+      margin: 12px 0 0;
+      color: #8ad8df;
+    }
+
+    .error {
+      color: #ffb8c2;
+    }
+
+    ul {
+      list-style: none;
+      display: grid;
+      gap: 12px;
+      padding: 0;
+    }
+
+    li {
+      border: 1px solid #51667c;
+      border-radius: 14px;
+      padding: 17px 19px;
+      background: #1a2a3d;
+    }
+
+    strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    li span {
+      color: #bfd0e5;
+    }
   </style>
 </head>
+
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 1단계 피해 확인</div>
+    <div class="eyebrow">BYTE BACK · 3단계 로그인</div>
+
     <h1>점령된 자료실</h1>
-    <p>지금은 보호 장치가 없는 상태입니다. 아래 기록은 모두 실습을 위해 만든 가상 자료입니다.</p>
-    <div class="notice">로그인하지 않은 방문자도 자료를 볼 수 있습니다. 공개 범위를 확인하고, 다음 제작 단계에서 접근을 차례로 막아 주세요.</div>
-    <ul id="notes" aria-live="polite"><li>가상 자료를 불러오는 중입니다.</li></ul>
+
+    <p>
+      Supabase Auth를 이용해 자료실의 로그인 상태를 관리합니다.
+    </p>
+
+    <section class="auth" aria-labelledby="auth-title">
+      <h2 id="auth-title">자료실 로그인</h2>
+
+      <form id="login-form">
+        <label>
+          이메일
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+          >
+        </label>
+
+        <label>
+          비밀번호
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          >
+        </label>
+
+        <button type="submit">로그인</button>
+      </form>
+
+      <div id="logged-in" hidden>
+        <p id="user-status" class="status"></p>
+        <button id="logout" type="button">로그아웃</button>
+      </div>
+
+      <p
+        id="auth-message"
+        class="status"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
+
+    <div class="notice">
+      현재 단계에서는 로그인·로그아웃 화면과 인증 상태만 연결합니다.
+      자료 접근 제한은 다음 단계에서 처리합니다.
+    </div>
+
+    <ul id="notes" aria-live="polite">
+      <li>가상 자료를 불러오는 중입니다.</li>
+    </ul>
   </main>
+
   <script type="module">
+    import {
+      createClient
+    } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const SUPABASE_URL =
+      'https://olwswefbgsglptdvhlbf.supabase.co';
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      'sb_publishable_sOCAdKdZx7YOWe_v5FHytA_HEx3m6fZ';
+
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    const loginForm = document.querySelector('#login-form');
+    const logoutButton = document.querySelector('#logout');
+    const loggedIn = document.querySelector('#logged-in');
+    const userStatus = document.querySelector('#user-status');
+    const authMessage = document.querySelector('#auth-message');
+
+    function renderAuthState(session) {
+      const user = session?.user ?? null;
+
+      loginForm.hidden = Boolean(user);
+      loggedIn.hidden = !user;
+
+      userStatus.textContent =
+        user ? `로그인됨: ${user.email}` : '';
+    }
+
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      authMessage.className = 'status';
+      authMessage.textContent = '로그인 중입니다.';
+
+      const email =
+        document.querySelector('#email').value.trim();
+
+      const password =
+        document.querySelector('#password').value;
+
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if (error) {
+        authMessage.className = 'status error';
+        authMessage.textContent =
+          `로그인 실패: ${error.message}`;
+        return;
+      }
+
+      loginForm.reset();
+      authMessage.textContent = '로그인되었습니다.';
+    });
+
+    logoutButton.addEventListener('click', async () => {
+      authMessage.className = 'status';
+      authMessage.textContent = '로그아웃 중입니다.';
+
+      const { error } =
+        await supabase.auth.signOut({
+          scope: 'local'
+        });
+
+      if (error) {
+        authMessage.className = 'status error';
+        authMessage.textContent =
+          `로그아웃 실패: ${error.message}`;
+        return;
+      }
+
+      authMessage.textContent = '로그아웃되었습니다.';
+    });
+
+    supabase.auth.onAuthStateChange(
+      (event, session) => {
+        renderAuthState(session);
+
+        if (event === 'SIGNED_OUT') {
+          authMessage.textContent =
+            '로그아웃되었습니다.';
+        }
+      }
+    );
+
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+
+    renderAuthState(session);
+
     const list = document.querySelector('#notes');
+
     try {
-      const response = await fetch('/api/notes', { cache: 'no-store' });
-      if (!response.ok) throw new Error('공개 자료를 읽을 수 없습니다.');
+      const response =
+        await fetch('/api/notes', {
+          cache: 'no-store'
+        });
+
+      if (!response.ok) {
+        throw new Error(
+          '공개 자료를 읽을 수 없습니다.'
+        );
+      }
+
       const data = await response.json();
-      if (!Array.isArray(data.notes)) throw new Error('자료 형식이 맞지 않습니다.');
-      list.replaceChildren(...data.notes.map(note => {
-        const item = document.createElement('li');
-        const title = document.createElement('strong');
-        const content = document.createElement('span');
-        title.textContent = note.title;
-        content.textContent = note.content;
-        item.append(title, content);
-        return item;
-      }));
+
+      if (!Array.isArray(data.notes)) {
+        throw new Error(
+          '자료 형식이 맞지 않습니다.'
+        );
+      }
+
+      list.replaceChildren(
+        ...data.notes.map(note => {
+          const item =
+            document.createElement('li');
+
+          const title =
+            document.createElement('strong');
+
+          const content =
+            document.createElement('span');
+
+          title.textContent = note.title;
+          content.textContent = note.content;
+
+          item.append(title, content);
+
+          return item;
+        })
+      );
+
     } catch (error) {
-      const item = document.createElement('li');
+      const item =
+        document.createElement('li');
+
       item.textContent = error.message;
+
       list.replaceChildren(item);
     }
   </script>
