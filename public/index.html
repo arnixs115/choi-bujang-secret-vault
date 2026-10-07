@@ -156,8 +156,36 @@
       자료 접근 제한은 다음 단계에서 처리합니다.
     </div>
 
+    <section class="auth" aria-labelledby="memo-title">
+      <h2 id="memo-title">가상 메모</h2>
+
+      <form id="memo-form">
+        <label>
+          제목
+          <input id="memo-title-input" type="text" required>
+        </label>
+
+        <label>
+          내용
+          <textarea id="memo-body-input" rows="5" required></textarea>
+        </label>
+
+        <button type="submit">메모 추가</button>
+        <button id="cancel-edit" type="button" hidden>
+          수정 취소
+        </button>
+      </form>
+
+      <p
+        id="memo-message"
+        class="status"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
+
     <ul id="notes" aria-live="polite">
-      <li>가상 자료를 불러오는 중입니다.</li>
+      <li>로그인하면 메모를 불러옵니다.</li>
     </ul>
   </main>
 
@@ -260,65 +288,247 @@
 
     const list = document.querySelector('#notes');
 
-    try {
+    const memoForm =
+      document.querySelector('#memo-form');
+
+    const memoTitleInput =
+      document.querySelector('#memo-title-input');
+
+    const memoBodyInput =
+      document.querySelector('#memo-body-input');
+
+    const cancelEditButton =
+      document.querySelector('#cancel-edit');
+
+    const memoMessage =
+      document.querySelector('#memo-message');
+
+    let editingId = null;
+
+    async function getAuthHeaders() {
       const {
         data: { session },
-        error: sessionError
+        error
       } = await supabase.auth.getSession();
-      
-      if (sessionError || !session?.access_token) {
+
+      if (error || !session?.access_token) {
         throw new Error('로그인이 필요합니다.');
       }
-      
-      const response = await fetch('/api/notes', {
+
+      return {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    async function apiRequest(url, options = {}) {
+      const response = await fetch(url, {
         cache: 'no-store',
+        ...options,
         headers: {
-          Authorization: `Bearer ${session.access_token}`
+          ...(await getAuthHeaders()),
+          ...(options.headers ?? {})
         }
       });
-      
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {}
+
       if (!response.ok) {
         throw new Error(
-          '공개 자료를 읽을 수 없습니다.'
+          data?.error ?? '요청에 실패했습니다.'
         );
       }
 
-      const data = await response.json();
+      return data;
+    }
 
-      if (!Array.isArray(data.notes)) {
-        throw new Error(
-          '자료 형식이 맞지 않습니다.'
-        );
-      }
+    async function loadNotes() {
+      try {
+        const notes =
+          await apiRequest('/api/notes');
 
-      list.replaceChildren(
-        ...data.notes.map(note => {
+        if (!Array.isArray(notes)) {
+          throw new Error('자료 형식이 맞지 않습니다.');
+        }
+
+        if (notes.length === 0) {
           const item =
             document.createElement('li');
 
-          const title =
-            document.createElement('strong');
+          item.textContent =
+            '아직 메모가 없습니다.';
 
-          const content =
-            document.createElement('span');
+          list.replaceChildren(item);
+          return;
+        }
 
-          title.textContent = note.title;
-          content.textContent = note.content;
+        list.replaceChildren(
+          ...notes.map(note => {
+            const item =
+              document.createElement('li');
 
-          item.append(title, content);
+            const title =
+              document.createElement('strong');
 
-          return item;
-        })
-      );
+            const body =
+              document.createElement('span');
 
-    } catch (error) {
-      const item =
-        document.createElement('li');
+            const edit =
+              document.createElement('button');
 
-      item.textContent = error.message;
+            const remove =
+              document.createElement('button');
 
-      list.replaceChildren(item);
+            title.textContent = note.title;
+            body.textContent = note.body;
+
+            edit.textContent = '수정';
+            remove.textContent = '삭제';
+
+            edit.type = 'button';
+            remove.type = 'button';
+
+            edit.addEventListener('click', () => {
+              editingId = note.id;
+
+              memoTitleInput.value =
+                note.title;
+
+              memoBodyInput.value =
+                note.body;
+
+              memoForm.querySelector(
+                'button[type="submit"]'
+              ).textContent = '메모 수정';
+
+              cancelEditButton.hidden = false;
+            });
+
+            remove.addEventListener(
+              'click',
+              async () => {
+                if (!confirm('이 메모를 삭제할까요?')) {
+                  return;
+                }
+
+                try {
+                  await apiRequest(
+                    `/api/notes/${note.id}`,
+                    { method: 'DELETE' }
+                  );
+
+                  memoMessage.textContent =
+                    '메모가 삭제되었습니다.';
+
+                  await loadNotes();
+                } catch (error) {
+                  memoMessage.className =
+                    'status error';
+
+                  memoMessage.textContent =
+                    error.message;
+                }
+              }
+            );
+
+            item.append(
+              title,
+              body,
+              document.createElement('br'),
+              edit,
+              ' ',
+              remove
+            );
+
+            return item;
+          })
+        );
+      } catch (error) {
+        const item =
+          document.createElement('li');
+
+        item.textContent = error.message;
+
+        list.replaceChildren(item);
+      }
     }
+
+    memoForm.addEventListener(
+      'submit',
+      async event => {
+        event.preventDefault();
+
+        try {
+          const payload = {
+            title: memoTitleInput.value.trim(),
+            body: memoBodyInput.value
+          };
+
+          if (editingId) {
+            await apiRequest(
+              `/api/notes/${editingId}`,
+              {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+              }
+            );
+
+            memoMessage.textContent =
+              '메모가 수정되었습니다.';
+          } else {
+            const result =
+              await apiRequest(
+                '/api/notes',
+                {
+                  method: 'POST',
+                  body: JSON.stringify(payload)
+                }
+              );
+
+            memoMessage.textContent =
+              `메모가 추가되었습니다. ID: ${result.id}`;
+          }
+
+          memoMessage.className = 'status';
+
+          editingId = null;
+          memoForm.reset();
+
+          memoForm.querySelector(
+            'button[type="submit"]'
+          ).textContent = '메모 추가';
+
+          cancelEditButton.hidden = true;
+
+          await loadNotes();
+        } catch (error) {
+          memoMessage.className =
+            'status error';
+
+          memoMessage.textContent =
+            error.message;
+        }
+      }
+    );
+
+    cancelEditButton.addEventListener(
+      'click',
+      () => {
+        editingId = null;
+
+        memoForm.reset();
+
+        memoForm.querySelector(
+          'button[type="submit"]'
+        ).textContent = '메모 추가';
+
+        cancelEditButton.hidden = true;
+      }
+    );
   </script>
 </body>
 </html>
