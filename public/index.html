@@ -261,11 +261,22 @@
     const list = document.querySelector('#notes');
 
     try {
-      const response =
-        await fetch('/api/notes', {
-          cache: 'no-store'
-        });
-
+      const {
+        data: { session },
+        error: sessionError
+      } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.access_token) {
+        throw new Error('로그인이 필요합니다.');
+      }
+      
+      const response = await fetch('/api/notes', {
+        cache: 'no-store',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(
           '공개 자료를 읽을 수 없습니다.'
