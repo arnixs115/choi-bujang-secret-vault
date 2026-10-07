@@ -1,4 +1,14 @@
+import { createLoginVerifier } from '../src/verify-login.mjs';
+import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+const verifyLogin = createLoginVerifier({
+  config,
+  supabaseSecretKey,
+});
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -8,8 +18,13 @@ export default async function handler(request, response) {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+  const authorization = request.headers.authorization;
+  const login = await verifyLogin(authorization);
+
+  if (!login) {
+    response.status(401).json({ error: 'UNAUTHORIZED' });
+    return;
+  }
 
   if (!supabaseUrl || !supabaseSecretKey) {
     response.status(500).json({ error: 'SUPABASE_SERVER_CONFIG_MISSING' });
