@@ -272,6 +272,10 @@
     supabase.auth.onAuthStateChange(
       (event, session) => {
         renderAuthState(session);
+        
+         if (event === 'SIGNED_IN' && session) {
+          loadNotes();
+        }
 
         if (event === 'SIGNED_OUT') {
           authMessage.textContent =
@@ -285,6 +289,10 @@
     } = await supabase.auth.getSession();
 
     renderAuthState(session);
+
+    if (session) {
+      await loadNotes();
+    }
 
     const list = document.querySelector('#notes');
 
