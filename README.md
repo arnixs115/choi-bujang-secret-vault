@@ -80,6 +80,98 @@ SUPABASE_SECRET_KEY는 브라우저 파일, API 응답, 로그, Git 저장소에
 
 과거 공개 커밋이나 배포에 자료가 남아 있는 경우에는 이를 별도의 잔존 노출로 기록하고, 삭제 또는 비공개 전환 등의 조치를 실제로 확인하기 전까지 노출 해소로 간주하지 않습니다.
 
+## 3단계 — 로그인한 사용자만 내 자료를 다루게 합니다
+
+### 구현 내용
+
+Supabase Auth를 이용해 이메일/비밀번호 로그인을 추가하고, 로그인한 사용자의 access token을 `/api/notes` 요청에 전달하도록 구성했습니다.
+
+서버에서는 기존 `src/verify-login.mjs`를 사용해 Supabase access token을 검증하고, 검증된 `userId`를 기준으로 메모의 소유자를 저장합니다.
+
+#### 인증
+
+- Supabase 공식 JavaScript SDK 사용
+- 이메일/비밀번호 로그인
+- 로그아웃
+- 로그인 상태 확인
+- 로그인한 사용자의 access token을 `Authorization: Bearer <token>`으로 API에 전달
+- 서버에서는 브라우저가 전달한 사용자 ID가 아니라 `verify-login.mjs`가 검증한 `login.userId`를 사용
+
+#### 메모 API
+
+| Method | Route | 동작 |
+|---|---|---|
+| GET | `/api/notes` | 로그인한 사용자의 메모 목록 |
+| POST | `/api/notes` | 로그인한 사용자의 메모 생성 |
+| GET | `/api/notes/:id` | 특정 메모 조회 |
+| PUT | `/api/notes/:id` | 특정 메모 수정 |
+| DELETE | `/api/notes/:id` | 특정 메모 삭제 |
+
+POST 요청은 `{ id, title, body }` 형식을 사용하며, `id`가 없으면 서버에서 UUID를 생성합니다.
+
+DB에는 다음과 같이 저장합니다.
+
+- `id`: UUID
+- `owner_id`: 서버에서 검증한 로그인 사용자 ID
+- `title`: 메모 제목
+- `content`: 메모 본문
+
+API에서는 DB의 `content`를 클라이언트의 `body`로 변환합니다.
+
+### 보안 관련 설정
+
+`aleph.config.json`의 `allowedRoutes`에 실제 메모 API 경로를 등록했습니다.
+
+```json
+[
+  "GET /api/notes",
+  "POST /api/notes",
+  "GET /api/notes/:id",
+  "PUT /api/notes/:id",
+  "DELETE /api/notes/:id"
+]
+```
+
+서버 전용 `SUPABASE_SECRET_KEY`는 브라우저 코드에 포함하지 않고 Vercel 환경변수로 관리합니다.
+
+브라우저에서는 Supabase URL과 Publishable Key만 사용합니다.
+
+### 확인 결과
+
+- [x] 로그인 없이 `/api/notes` 요청 시 `401`과 JSON 오류 응답 확인
+- [x] 정상 사용자 로그인 확인
+- [x] 로그인한 사용자의 메모 추가 확인 (`201`)
+- [x] 로그인한 사용자의 메모 수정 확인 (`200`)
+- [x] 로그인한 사용자의 메모 삭제 확인 (`200`)
+- [x] 삭제한 메모를 다시 조회하면 `404` 확인
+- [x] `/aleph.json` 접근 확인
+- [x] 첫 화면 응답의 `X-Content-Type-Options: nosniff` 보안 헤더 확인
+- [x] 브라우저 코드에 서버 전용 `SUPABASE_SECRET_KEY`가 없는 것을 확인
+
+### 현재 단계에서 의도적으로 남겨둔 부분
+
+현재 `GET /api/notes` 목록 조회와 메모 생성에는 `owner_id`를 적용했습니다.
+
+반면 개별 메모의 `GET /api/notes/:id`, `PUT /api/notes/:id`, `DELETE /api/notes/:id`에서는 아직 메모 소유자 검사를 하지 않습니다.
+
+따라서 현재 단계에서는 메모 ID를 알고 있는 다른 사용자가 해당 메모를 조회하거나 수정 또는 삭제할 수 있는 문제가 남아 있습니다.
+
+이 문제는 다음 단계에서 **BOLA/IDOR 형태의 객체 소유권 검증 문제**로 확인하고 수정합니다.
+
+### 재현 / 확인 방법
+
+1. 정상 사용자로 로그인합니다.
+2. 메모를 추가하고 수정 및 삭제합니다.
+3. 로그아웃하거나 시크릿 창에서 `/api/notes`를 요청합니다.
+4. 인증되지 않은 요청이 `401` JSON 응답으로 거부되는지 확인합니다.
+5. 배포 주소의 `/aleph.json`이 정상적으로 열리는지 확인합니다.
+6. `/` 응답의 보안 헤더를 확인합니다.
+
+### 다음 단계
+
+**4단계 — 로그인해도 내 자료만 보이게 합니다**
+
+개별 메모 API에도 `owner_id` 검사를 적용하여, 다른 사용자가 메모 ID를 알고 있더라도 조회·수정·삭제할 수 없도록 변경합니다.
 
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
