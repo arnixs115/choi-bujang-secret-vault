@@ -67,6 +67,7 @@ export default async function handler(request, response) {
       .from('learning_notes')
       .select('id, title, content')
       .eq('id', id)
+      .eq('owner_id', login.userId)
       .maybeSingle();
 
     if (error) {
@@ -111,7 +112,7 @@ export default async function handler(request, response) {
         content: request.body.body,
       })
       .eq('id', id)
-      .select('id, title, content')
+      .eq('owner_id', login.userId)
       .maybeSingle();
 
     if (error) {
@@ -141,6 +142,7 @@ export default async function handler(request, response) {
     .from('learning_notes')
     .delete()
     .eq('id', id)
+    .eq('owner_id', login.userId)
     .select('id')
     .maybeSingle();
 
