@@ -113,6 +113,7 @@ export default async function handler(request, response) {
       })
       .eq('id', id)
       .eq('owner_id', login.userId)
+      .select('id, title, content')
       .maybeSingle();
 
     if (error) {
