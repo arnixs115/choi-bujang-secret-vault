@@ -1,0 +1,26 @@
+
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "brute-force",
+  "technique": {
+    "id": "T1110",
+    "name": "Brute Force",
+    "source": "https://attack.mitre.org/techniques/T1110/"
+  },
+  "patterns": [
+    {
+      "id": "repeated-failures-same-source",
+      "name": "동일 출발 주소의 연속 로그인 실패",
+      "condition": "짧은 시간 구간에 동일한 출발 주소에서 로그인 실패 이벤트가 반복해서 발생한다.",
+      "evidence": "MITRE ATT&CK T1110은 반복적·순차적인 비밀번호 추측을 무차별 대입의 형태로 설명한다.",
+      "source": "https://attack.mitre.org/techniques/T1110/"
+    },
+    {
+      "id": "password-spraying-across-accounts",
+      "name": "여러 계정 대상 비밀번호 대입",
+      "condition": "짧은 시간 구간에 여러 계정에 대해 동일하거나 소수의 비밀번호를 사용한 로그인 실패가 관측된다.",
+      "evidence": "MITRE ATT&CK T1110.003은 하나 또는 소수의 흔한 비밀번호를 여러 계정에 시도하는 Password Spraying을 설명한다.",
+      "source": "https://attack.mitre.org/techniques/T1110/003/"
+    }
+  ]
+}
