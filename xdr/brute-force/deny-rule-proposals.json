@@ -1,0 +1,42 @@
+[
+  {
+    "id": "xdr.brute-force.bf-01",
+    "effect": "deny",
+    "sourceAddress": "203.0.113.10",
+    "expiresAt": "2026-10-12T13:40:18.862Z",
+    "evidenceAlertId": "bf-01",
+    "reason": "동일 출발 주소의 연속 로그인 실패"
+  },
+  {
+    "id": "xdr.brute-force.bf-03",
+    "effect": "deny",
+    "sourceAddress": "198.51.100.20",
+    "expiresAt": "2026-10-12T13:40:18.868Z",
+    "evidenceAlertId": "bf-03",
+    "reason": "동일 출발 주소의 연속 로그인 실패"
+  },
+  {
+    "id": "xdr.brute-force.bf-04",
+    "effect": "deny",
+    "sourceAddress": "192.0.2.30",
+    "expiresAt": "2026-10-12T13:40:18.872Z",
+    "evidenceAlertId": "bf-04",
+    "reason": "동일 출발 주소의 연속 로그인 실패"
+  },
+  {
+    "id": "xdr.brute-force.bf-06",
+    "effect": "deny",
+    "sourceAddress": "198.51.100.44",
+    "expiresAt": "2026-10-12T13:40:18.876Z",
+    "evidenceAlertId": "bf-06",
+    "reason": "동일 출발 주소의 연속 로그인 실패"
+  },
+  {
+    "id": "xdr.brute-force.bf-09",
+    "effect": "deny",
+    "sourceAddress": "198.51.100.8",
+    "expiresAt": "2026-10-12T13:40:18.882Z",
+    "evidenceAlertId": "bf-09",
+    "reason": "여러 계정 대상 비밀번호 대입"
+  }
+]
