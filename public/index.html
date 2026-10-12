@@ -189,27 +189,25 @@
     </ul>
   </main>
 
+  
   <script type="module">
-    import {
-      createClient
-    } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-    const SUPABASE_URL =
-      'https://olwswefbgsglptdvhlbf.supabase.co';
-
-    const SUPABASE_PUBLISHABLE_KEY =
-      'sb_publishable_sOCAdKdZx7YOWe_v5FHytA_HEx3m6fZ';
-
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY
-    );
-
     const loginForm = document.querySelector('#login-form');
     const logoutButton = document.querySelector('#logout');
     const loggedIn = document.querySelector('#logged-in');
     const userStatus = document.querySelector('#user-status');
     const authMessage = document.querySelector('#auth-message');
+
+    const list = document.querySelector('#notes');
+    const memoForm = document.querySelector('#memo-form');
+    const memoTitleInput = document.querySelector('#memo-title-input');
+    const memoBodyInput = document.querySelector('#memo-body-input');
+    const cancelEditButton = document.querySelector('#cancel-edit');
+    const memoMessage = document.querySelector('#memo-message');
+
+    const SESSION_KEY = 'byte-back-session';
+
+    let currentSession = null;
+    let editingId = null;
 
     function renderAuthState(session) {
       const user = session?.user ?? null;
@@ -221,120 +219,57 @@
         user ? `로그인됨: ${user.email}` : '';
     }
 
-    loginForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
+    function saveSession(session) {
+      currentSession = session;
 
-      authMessage.className = 'status';
-      authMessage.textContent = '로그인 중입니다.';
-
-      const email =
-        document.querySelector('#email').value.trim();
-
-      const password =
-        document.querySelector('#password').value;
-
-      const { error } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-      if (error) {
-        authMessage.className = 'status error';
-        authMessage.textContent =
-          `로그인 실패: ${error.message}`;
-        return;
+      if (session) {
+        sessionStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify(session)
+        );
+      } else {
+        sessionStorage.removeItem(SESSION_KEY);
       }
 
-      loginForm.reset();
-      authMessage.textContent = '로그인되었습니다.';
-    });
-
-    logoutButton.addEventListener('click', async () => {
-      authMessage.className = 'status';
-      authMessage.textContent = '로그아웃 중입니다.';
-
-      const { error } =
-        await supabase.auth.signOut({
-          scope: 'local'
-        });
-
-      if (error) {
-        authMessage.className = 'status error';
-        authMessage.textContent =
-          `로그아웃 실패: ${error.message}`;
-        return;
-      }
-
-      authMessage.textContent = '로그아웃되었습니다.';
-    });
-
-    supabase.auth.onAuthStateChange(
-      (event, session) => {
-        renderAuthState(session);
-        
-         if (event === 'SIGNED_IN' && session) {
-          loadNotes();
-        }
-
-        if (event === 'SIGNED_OUT') {
-          authMessage.textContent =
-            '로그아웃되었습니다.';
-        }
-      }
-    );
-
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
-    renderAuthState(session);
-
-    if (session) {
-      await loadNotes();
+      renderAuthState(session);
     }
 
-    const list = document.querySelector('#notes');
+    function resetMemoForm() {
+      editingId = null;
+      memoForm.reset();
 
-    const memoForm =
-      document.querySelector('#memo-form');
+      memoForm.querySelector(
+        'button[type="submit"]'
+      ).textContent = '메모 추가';
 
-    const memoTitleInput =
-      document.querySelector('#memo-title-input');
-
-    const memoBodyInput =
-      document.querySelector('#memo-body-input');
-
-    const cancelEditButton =
-      document.querySelector('#cancel-edit');
-
-    const memoMessage =
-      document.querySelector('#memo-message');
-
-    let editingId = null;
+      cancelEditButton.hidden = true;
+    }
 
     async function getAuthHeaders() {
-      const {
-        data: { session },
-        error
-      } = await supabase.auth.getSession();
-
-      if (error || !session?.access_token) {
-        throw new Error('로그인이 필요합니다.');
+      if (
+        !currentSession?.access_token ||
+        !currentSession?.expires_at ||
+        currentSession.expires_at <=
+          Math.floor(Date.now() / 1000)
+      ) {
+        saveSession(null);
+        throw new Error('로그인이 필요합니다. 다시 로그인해 주세요.');
       }
 
       return {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${currentSession.access_token}`,
         'Content-Type': 'application/json'
       };
     }
 
     async function apiRequest(url, options = {}) {
+      const authHeaders = await getAuthHeaders();
+
       const response = await fetch(url, {
-        cache: 'no-store',
         ...options,
+        cache: 'no-store',
         headers: {
-          ...(await getAuthHeaders()),
+          ...authHeaders,
           ...(options.headers ?? {})
         }
       });
@@ -343,7 +278,9 @@
 
       try {
         data = await response.json();
-      } catch {}
+      } catch {
+        // 응답 본문이 JSON이 아닌 경우
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -356,40 +293,26 @@
 
     async function loadNotes() {
       try {
-        const notes =
-          await apiRequest('/api/notes');
+        const notes = await apiRequest('/api/notes');
 
         if (!Array.isArray(notes)) {
           throw new Error('자료 형식이 맞지 않습니다.');
         }
 
         if (notes.length === 0) {
-          const item =
-            document.createElement('li');
-
-          item.textContent =
-            '아직 메모가 없습니다.';
-
+          const item = document.createElement('li');
+          item.textContent = '아직 메모가 없습니다.';
           list.replaceChildren(item);
           return;
         }
 
         list.replaceChildren(
           ...notes.map(note => {
-            const item =
-              document.createElement('li');
-
-            const title =
-              document.createElement('strong');
-
-            const body =
-              document.createElement('span');
-
-            const edit =
-              document.createElement('button');
-
-            const remove =
-              document.createElement('button');
+            const item = document.createElement('li');
+            const title = document.createElement('strong');
+            const body = document.createElement('span');
+            const edit = document.createElement('button');
+            const remove = document.createElement('button');
 
             title.textContent = note.title;
             body.textContent = note.body;
@@ -402,12 +325,8 @@
 
             edit.addEventListener('click', () => {
               editingId = note.id;
-
-              memoTitleInput.value =
-                note.title;
-
-              memoBodyInput.value =
-                note.body;
+              memoTitleInput.value = note.title;
+              memoBodyInput.value = note.body;
 
               memoForm.querySelector(
                 'button[type="submit"]'
@@ -416,32 +335,26 @@
               cancelEditButton.hidden = false;
             });
 
-            remove.addEventListener(
-              'click',
-              async () => {
-                if (!confirm('이 메모를 삭제할까요?')) {
-                  return;
-                }
-
-                try {
-                  await apiRequest(
-                    `/api/notes/${note.id}`,
-                    { method: 'DELETE' }
-                  );
-
-                  memoMessage.textContent =
-                    '메모가 삭제되었습니다.';
-
-                  await loadNotes();
-                } catch (error) {
-                  memoMessage.className =
-                    'status error';
-
-                  memoMessage.textContent =
-                    error.message;
-                }
+            remove.addEventListener('click', async () => {
+              if (!confirm('이 메모를 삭제할까요?')) {
+                return;
               }
-            );
+
+              try {
+                await apiRequest(
+                  `/api/notes/${note.id}`,
+                  { method: 'DELETE' }
+                );
+
+                memoMessage.className = 'status';
+                memoMessage.textContent = '메모가 삭제되었습니다.';
+
+                await loadNotes();
+              } catch (error) {
+                memoMessage.className = 'status error';
+                memoMessage.textContent = error.message;
+              }
+            });
 
             item.append(
               title,
@@ -456,87 +369,159 @@
           })
         );
       } catch (error) {
-        const item =
-          document.createElement('li');
-
+        const item = document.createElement('li');
         item.textContent = error.message;
-
         list.replaceChildren(item);
       }
     }
 
-    memoForm.addEventListener(
-      'submit',
-      async event => {
-        event.preventDefault();
+    loginForm.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      authMessage.className = 'status';
+      authMessage.textContent = '로그인 중입니다.';
+
+      const email = document.querySelector('#email').value.trim();
+      const password = document.querySelector('#password').value;
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          cache: 'no-store',
+          body: JSON.stringify({ email, password })
+        });
+
+        let data = null;
 
         try {
-          const payload = {
-            title: memoTitleInput.value.trim(),
-            body: memoBodyInput.value
-          };
+          data = await response.json();
+        } catch {
+          throw new Error('서버 응답을 읽을 수 없습니다.');
+        }
 
-          if (editingId) {
-            await apiRequest(
-              `/api/notes/${editingId}`,
-              {
-                method: 'PUT',
-                body: JSON.stringify(payload)
-              }
-            );
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401
+              ? '이메일 또는 비밀번호를 확인해 주세요.'
+              : data?.error ?? '로그인에 실패했습니다.'
+          );
+        }
 
-            memoMessage.textContent =
-              '메모가 수정되었습니다.';
-          } else {
-            const result =
-              await apiRequest(
-                '/api/notes',
-                {
-                  method: 'POST',
-                  body: JSON.stringify(payload)
-                }
-              );
+        if (
+          !data?.access_token ||
+          !data?.expires_at ||
+          !data?.user
+        ) {
+          throw new Error('로그인 응답 형식이 올바르지 않습니다.');
+        }
 
-            memoMessage.textContent =
-              `메모가 추가되었습니다. ID: ${result.id}`;
-          }
+        saveSession(data);
+        loginForm.reset();
 
-          memoMessage.className = 'status';
+        authMessage.className = 'status';
+        authMessage.textContent = '로그인되었습니다.';
 
-          editingId = null;
-          memoForm.reset();
+        await loadNotes();
+      } catch (error) {
+        authMessage.className = 'status error';
+        authMessage.textContent = error.message;
+      }
+    });
 
-          memoForm.querySelector(
-            'button[type="submit"]'
-          ).textContent = '메모 추가';
+    logoutButton.addEventListener('click', () => {
+      saveSession(null);
+      list.replaceChildren();
 
-          cancelEditButton.hidden = true;
+      resetMemoForm();
 
-          await loadNotes();
-        } catch (error) {
-          memoMessage.className =
-            'status error';
+      authMessage.className = 'status';
+      authMessage.textContent = '로그아웃되었습니다.';
+
+      memoMessage.className = 'status';
+      memoMessage.textContent = '';
+    });
+
+    memoForm.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      try {
+        const payload = {
+          title: memoTitleInput.value.trim(),
+          body: memoBodyInput.value
+        };
+
+        if (!payload.title || !payload.body.trim()) {
+          throw new Error('제목과 내용을 입력해 주세요.');
+        }
+
+        if (editingId !== null) {
+          await apiRequest(
+            `/api/notes/${editingId}`,
+            {
+              method: 'PUT',
+              body: JSON.stringify(payload)
+            }
+          );
+
+          memoMessage.textContent = '메모가 수정되었습니다.';
+        } else {
+          const result = await apiRequest(
+            '/api/notes',
+            {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            }
+          );
 
           memoMessage.textContent =
-            error.message;
+            `메모가 추가되었습니다. ID: ${result.id}`;
         }
+
+        memoMessage.className = 'status';
+        resetMemoForm();
+
+        await loadNotes();
+      } catch (error) {
+        memoMessage.className = 'status error';
+        memoMessage.textContent = error.message;
       }
-    );
+    });
 
-    cancelEditButton.addEventListener(
-      'click',
-      () => {
-        editingId = null;
+    cancelEditButton.addEventListener('click', () => {
+      resetMemoForm();
+      memoMessage.className = 'status';
+      memoMessage.textContent = '';
+    });
 
-        memoForm.reset();
+    // 페이지를 새로고침했을 때 현재 탭의 로그인 상태 복원
+    const savedSession = sessionStorage.getItem(SESSION_KEY);
 
-        memoForm.querySelector(
-          'button[type="submit"]'
-        ).textContent = '메모 추가';
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession);
 
-        cancelEditButton.hidden = true;
+        if (
+          session?.access_token &&
+          session?.user &&
+          Number.isFinite(session.expires_at) &&
+          session.expires_at > Math.floor(Date.now() / 1000)
+        ) {
+          currentSession = session;
+          renderAuthState(session);
+          await loadNotes();
+        } else {
+          saveSession(null);
+        }
+      } catch {
+        saveSession(null);
       }
-    );
+    } else {
+      renderAuthState(null);
+    }
   </script>
+
 </body>
 </html>
