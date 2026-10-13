@@ -1,9 +1,7 @@
 // ALEPH SDP 엔진이 확인한 요청만 받는 학생 판정기 시작점입니다.
 // 6단계부터 규칙을 하나씩 추가합니다. 등록 기기의 자료실 읽기만 허용합니다.
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
-export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered']);
-
-
+export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required',]);
 
 function validSignals(signals) {
   if (!signals || typeof signals !== 'object' || Array.isArray(signals)) {
@@ -89,6 +87,50 @@ export async function decide(request) {
       decision: 'deny',
       reasonCode: 'device_not_registered',
       ruleIds: ['device_registered'],
+    };
+  }
+
+    // 평소와 다른 시각 + 낯선 네트워크 + 갑작스러운 대량 접근이면 추가 확인
+  const unusualHour = request.signals.hour < 6
+    || request.signals.hour >= 22;
+
+  const unusualNetwork = request.signals.network === 'unusual';
+
+  const burstRead = request.recentEvents.some(event =>
+    event.kind === 'risk_signal'
+    && event.count >= 10
+    && event.ageSeconds <= 300
+  );
+
+  if (unusualHour && unusualNetwork && burstRead) {
+    // 추가 확인을 완료한 경우에만 정상 자료실 읽기를 허용한다.
+    if (request.stepUp?.verified === true
+        && Number.isInteger(request.stepUp.authAgeSeconds)
+        && request.stepUp.authAgeSeconds >= 0
+        && request.stepUp.authAgeSeconds <= 300) {
+      const isNotesRead = request.method === 'GET'
+        && (
+          request.route === 'GET /notes'
+          || request.route === 'GET /notes/:id'
+        );
+
+      if (isNotesRead) {
+        return {
+          schema: 'aleph.decision.v1',
+          requestId: request.requestId,
+          decision: 'allow',
+          reasonCode: 'approved',
+          ruleIds: ['step_up_required'],
+        };
+      }
+    }
+
+    return {
+      schema: 'aleph.decision.v1',
+      requestId: request.requestId,
+      decision: 'step_up',
+      reasonCode: 'step_up_required',
+      ruleIds: ['step_up_required'],
     };
   }
 
