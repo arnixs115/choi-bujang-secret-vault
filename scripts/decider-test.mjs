@@ -29,6 +29,66 @@ export async function checkDecider({ decide, ruleIds }) {
     { name: '미등록 기기의 가상 요청', request: { ...normal, requestId: randomUUID(),
       deviceRegistered: false }, decision: 'deny', reasonCode: 'device_not_registered' },
   ];
+  checks.push(
+    {
+      name: '접속 신호 누락',
+      request: { ...normal, requestId: randomUUID(), signals: undefined },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+    {
+      name: '허용되지 않은 접속 정보 출처',
+      request: {
+        ...normal,
+        requestId: randomUUID(),
+        signals: { ...normal.signals, source: 'client_header' },
+      },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+    {
+      name: '지역 정보가 공백뿐인 요청',
+      request: {
+        ...normal,
+        requestId: randomUUID(),
+        signals: { ...normal.signals, region: '   ' },
+      },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+    {
+      name: '최근 이벤트 누락',
+      request: { ...normal, requestId: randomUUID(), recentEvents: undefined },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+    {
+      name: '잘못된 최근 이벤트',
+      request: {
+        ...normal,
+        requestId: randomUUID(),
+        recentEvents: [{ kind: 'risk_signal', ageSeconds: -1, count: 1 }],
+      },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+    {
+      name: '출처 없음인데 지역·네트워크가 채워진 요청',
+      request: {
+        ...normal,
+        requestId: randomUUID(),
+        signals: {
+          source: 'none',
+          region: 'local',
+          network: 'usual',
+          hour: 14,
+        },
+      },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+  );
+
   if (ruleIds.includes('step_up_required')) {
     checks.push(
       { name: '복합 이상 접속', request: suspicious, decision: 'step_up',
