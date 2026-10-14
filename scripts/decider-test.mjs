@@ -196,6 +196,26 @@ export async function checkDecider({ decide, ruleIds }) {
       decision: 'deny',
       reasonCode: 'starter_not_ready',
     },
+    {
+      name: '계약에 없는 메모 본문 필드 거부',
+      request: {
+        ...normal,
+        requestId: randomUUID(),
+        memoContent: '가상 비밀 내용',
+      },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
+    {
+      name: '잘못된 기기 ID 형식 거부',
+      request: {
+        ...normal,
+        requestId: randomUUID(),
+        deviceId: 'invalid-device-id',
+      },
+      decision: 'deny',
+      reasonCode: 'starter_not_ready',
+    },
   );
 
   if (ruleIds.includes('step_up_required')) {

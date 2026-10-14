@@ -3,6 +3,78 @@
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
 export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required', 'resource_zone_policy',]);
 
+const REQUEST_KEYS = 'at,classId,deviceId,deviceRegistered,method,path,policyRevision,projectId,queryLength,querySha256,recentEvents,requestId,route,schema,service,signals,stepUp,subjectId';
+
+function validRequestShape(request) {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    return false;
+  }
+
+  // 계약에 없는 필드는 허용하지 않는다.
+  if (Object.keys(request).sort().join(',') !== REQUEST_KEYS) {
+    return false;
+  }
+
+  if (request.schema !== 'aleph.decision.v1') return false;
+
+  if (typeof request.requestId !== 'string'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(request.requestId)) {
+    return false;
+  }
+
+  if (typeof request.classId !== 'string' || !request.classId.trim()
+      || typeof request.projectId !== 'string' || !request.projectId.trim()
+      || typeof request.subjectId !== 'string' || !request.subjectId.trim()) {
+    return false;
+  }
+
+  if (typeof request.deviceId !== 'string'
+      || !/^[0-9a-f]{16}$/u.test(request.deviceId)) {
+    return false;
+  }
+
+  if (typeof request.service !== 'string' || !request.service.trim()
+      || typeof request.method !== 'string' || !/^[A-Z]+$/u.test(request.method)
+      || typeof request.path !== 'string' || !request.path.startsWith('/')
+      || typeof request.route !== 'string' || !request.route.trim()) {
+    return false;
+  }
+
+  if (!Number.isInteger(request.queryLength) || request.queryLength < 0
+      || typeof request.querySha256 !== 'string'
+      || !/^[0-9a-f]{64}$/u.test(request.querySha256)) {
+    return false;
+  }
+
+  if (typeof request.at !== 'string'
+      || !Number.isFinite(Date.parse(request.at))
+      || new Date(request.at).toISOString() !== request.at) {
+    return false;
+  }
+
+  if (!Number.isInteger(request.policyRevision) || request.policyRevision < 1
+      || typeof request.deviceRegistered !== 'boolean') {
+    return false;
+  }
+
+  const stepUp = request.stepUp;
+
+  if (!stepUp || typeof stepUp !== 'object' || Array.isArray(stepUp)
+      || Object.keys(stepUp).sort().join(',') !== 'authAgeSeconds,verified'
+      || typeof stepUp.verified !== 'boolean') {
+    return false;
+  }
+
+  if (stepUp.verified === false) {
+    if (stepUp.authAgeSeconds !== null) return false;
+  } else if (!Number.isInteger(stepUp.authAgeSeconds)
+      || stepUp.authAgeSeconds < 0 || stepUp.authAgeSeconds > 900) {
+    return false;
+  }
+
+  return true;
+}
+
 function validSignals(signals) {
   if (!signals || typeof signals !== 'object' || Array.isArray(signals)) {
     return false;
@@ -121,7 +193,7 @@ function decisionResponse(request, decision, reasonCode, ruleIds) {
 
 export async function decide(request) {
   if (
-    !request ||
+    !validRequestShape(request) ||
     !validSignals(request.signals) ||
     !validRecentEvents(request.recentEvents)
   ) {
