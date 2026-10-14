@@ -29,6 +29,115 @@ export async function checkDecider({ decide, ruleIds }) {
     { name: '미등록 기기의 가상 요청', request: { ...normal, requestId: randomUUID(),
       deviceRegistered: false }, decision: 'deny', reasonCode: 'device_not_registered' },
   ];
+  
+  const makeZoneRequest = (overrides = {}) => ({
+    ...normal,
+    requestId: randomUUID(),
+    ...overrides,
+  });
+
+  checks.push(
+    {
+      name: '메모 단건 읽기 허용',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'GET',
+        path: '/notes/demo',
+        route: 'GET /notes/:id',
+        queryLength: 0,
+      }),
+      decision: 'allow',
+    },
+    {
+      name: '메모 전체 목록 거부',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'GET',
+        path: '/notes',
+        route: 'GET /notes',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+    {
+      name: '메모 ID 형식 제한 없음',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'GET',
+        path: '/notes/judge-virtual-id',
+        route: 'GET /notes/:id',
+        queryLength: 0,
+      }),
+      decision: 'allow',
+    },
+    {
+      name: '메모 경로의 하위 기능 거부',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'GET',
+        path: '/notes/demo/export',
+        route: 'GET /notes/:id/export',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+    {
+      name: '쿼리가 있는 메모 요청 거부',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'GET',
+        path: '/notes/demo',
+        route: 'GET /notes/:id',
+        queryLength: 5,
+      }),
+      decision: 'deny',
+    },
+    {
+      name: '반 공지 읽기 허용',
+      request: makeZoneRequest({
+        service: 'announcements',
+        method: 'GET',
+        path: '/announcements',
+        route: 'GET /announcements',
+        queryLength: 0,
+      }),
+      decision: 'allow',
+    },
+    ...['POST', 'PUT', 'PATCH', 'DELETE'].map(method => ({
+      name: `반 공지 ${method} 거부`,
+      request: makeZoneRequest({
+        service: 'announcements',
+        method,
+        path: '/announcements',
+        route: `${method} /announcements`,
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    })),
+    {
+      name: '강사 자료 읽기 거부',
+      request: makeZoneRequest({
+        service: 'instructor-materials',
+        method: 'GET',
+        path: '/materials/guide',
+        route: 'GET /materials/:id',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+    {
+      name: '알 수 없는 서비스 거부',
+      request: makeZoneRequest({
+        service: 'unknown-service',
+        method: 'GET',
+        path: '/unknown/item',
+        route: 'GET /unknown/:id',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+  );
+
   checks.push(
     {
       name: '접속 신호 누락',

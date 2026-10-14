@@ -1,7 +1,7 @@
 // ALEPH SDP 엔진이 확인한 요청만 받는 학생 판정기 시작점입니다.
 // 6단계부터 규칙을 하나씩 추가합니다. 등록 기기의 자료실 읽기만 허용합니다.
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
-export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required',]);
+export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required', 'resource_zone_policy',]);
 
 function validSignals(signals) {
   if (!signals || typeof signals !== 'object' || Array.isArray(signals)) {
@@ -45,7 +45,6 @@ function validSignals(signals) {
   return true;
 }
 
-
 function validRecentEvents(events) {
   if (!Array.isArray(events) || events.length > 12) return false;
 
@@ -67,96 +66,133 @@ function validRecentEvents(events) {
   });
 }
 
+function resourceZoneAllows(request) {
+  // 쿼리로 기능을 선택하는 요청은 거부
+  if (
+    request.queryLength !== 0 ||
+    typeof request.service !== 'string' ||
+    typeof request.method !== 'string' ||
+    typeof request.path !== 'string' ||
+    typeof request.route !== 'string'
+  ) {
+    return false;
+  }
+
+  const { service, method, path, route } = request;
+
+  // 메모: 목록은 거부하고 단일 ID 경로만 허용
+  // ID 형식은 제한하지 않으며, 소유권 검사는 API에서 수행
+  if (service === 'notes') {
+    return (
+      /^\/notes\/[^/?#]+$/u.test(path) &&
+      method === 'GET' &&
+      route === 'GET /notes/:id'
+    );
+  }
+
+  // 반 공지: 읽기 전용
+  if (service === 'announcements') {
+    if (method !== 'GET') return false;
+
+    if (path === '/announcements') {
+      return route === 'GET /announcements';
+    }
+
+    return (
+      /^\/announcements\/[^/?#]+$/u.test(path) &&
+      route === 'GET /announcements/:id'
+    );
+  }
+
+  // 강사 자료 및 알 수 없는 서비스는 거부
+  return false;
+}
+
+
+function decisionResponse(request, decision, reasonCode, ruleIds) {
+  return {
+    schema: 'aleph.decision.v1',
+    requestId: request.requestId,
+    decision,
+    reasonCode,
+    ruleIds,
+  };
+}
+
 export async function decide(request) {
-  // 입력이 계약에 맞지 않으면 정상 요청으로 취급하지 않는다.
-  if (!validSignals(request.signals) || !validRecentEvents(request.recentEvents)) {
-    return {
-      schema: 'aleph.decision.v1',
-      requestId: request.requestId,
-      decision: 'deny',
-      reasonCode: 'starter_not_ready',
-      ruleIds: ['starter.deny'],
-    };
+  if (
+    !request ||
+    !validSignals(request.signals) ||
+    !validRecentEvents(request.recentEvents)
+  ) {
+    return decisionResponse(
+      request ?? {},
+      'deny',
+      'starter_not_ready',
+      ['starter.deny'],
+    );
   }
 
-  // 등록되지 않았거나 등록 상태가 없는 기기는 거부
+  // 기존 6단계: 등록되지 않은 기기는 거부
   if (request.deviceRegistered !== true) {
-    return {
-      schema: 'aleph.decision.v1',
-      requestId: request.requestId,
-      decision: 'deny',
-      reasonCode: 'device_not_registered',
-      ruleIds: ['device_registered'],
-    };
+    return decisionResponse(
+      request,
+      'deny',
+      'device_not_registered',
+      ['device_registered'],
+    );
   }
 
-    // 평소와 다른 시각 + 낯선 네트워크 + 갑작스러운 대량 접근이면 추가 확인
-  const unusualHour = request.signals.hour < 6
-    || request.signals.hour >= 22;
+  // 구역 정책을 통과하지 못하면 추가 확인으로 우회할 수 없음
+  if (!resourceZoneAllows(request)) {
+    return decisionResponse(
+      request,
+      'deny',
+      'starter_not_ready',
+      ['resource_zone_policy'],
+    );
+  }
+
+  // 기존 7단계: 복합 이상 접속 탐지
+  const unusualHour =
+    request.signals.hour < 6 || request.signals.hour >= 22;
 
   const unusualNetwork = request.signals.network === 'unusual';
 
   const burstRead = request.recentEvents.some(event =>
-    event.kind === 'risk_signal'
-    && event.count >= 10
-    && event.ageSeconds <= 300
+    event.kind === 'risk_signal' &&
+    event.count >= 10 &&
+    event.ageSeconds <= 300
   );
 
   if (unusualHour && unusualNetwork && burstRead) {
-    // 추가 확인을 완료한 경우에만 정상 자료실 읽기를 허용한다.
-    if (request.stepUp?.verified === true
-        && Number.isInteger(request.stepUp.authAgeSeconds)
-        && request.stepUp.authAgeSeconds >= 0
-        && request.stepUp.authAgeSeconds <= 300) {
-      const isNotesRead = request.method === 'GET'
-        && (
-          request.route === 'GET /notes'
-          || request.route === 'GET /notes/:id'
-        );
+    const recentlyVerified =
+      request.stepUp?.verified === true &&
+      Number.isInteger(request.stepUp.authAgeSeconds) &&
+      request.stepUp.authAgeSeconds >= 0 &&
+      request.stepUp.authAgeSeconds <= 300;
 
-      if (isNotesRead) {
-        return {
-          schema: 'aleph.decision.v1',
-          requestId: request.requestId,
-          decision: 'allow',
-          reasonCode: 'approved',
-          ruleIds: ['step_up_required'],
-        };
-      }
+    if (recentlyVerified && request.method === 'GET') {
+      return decisionResponse(
+        request,
+        'allow',
+        'approved',
+        ['step_up_required'],
+      );
     }
 
-    return {
-      schema: 'aleph.decision.v1',
-      requestId: request.requestId,
-      decision: 'step_up',
-      reasonCode: 'step_up_required',
-      ruleIds: ['step_up_required'],
-    };
-  }
-
-  // 등록된 기기의 자료실 읽기 요청만 허용
-  const isNotesRead = request.method === 'GET'
-    && (
-      request.route === 'GET /notes'
-      || request.route === 'GET /notes/:id'
+    return decisionResponse(
+      request,
+      'step_up',
+      'step_up_required',
+      ['step_up_required'],
     );
-
-  if (isNotesRead) {
-    return {
-      schema: 'aleph.decision.v1',
-      requestId: request.requestId,
-      decision: 'allow',
-      reasonCode: 'approved',
-      ruleIds: ['device_registered'],
-    };
   }
 
-  // 다른 요청은 기존 기본 거부 규칙 유지
-  return {
-    schema: 'aleph.decision.v1',
-    requestId: request.requestId,
-    decision: 'deny',
-    reasonCode: 'starter_not_ready',
-    ruleIds: ['starter.deny'],
-  };
+  return decisionResponse(
+    request,
+    'allow',
+    'approved',
+    ['resource_zone_policy'],
+  );
 }
