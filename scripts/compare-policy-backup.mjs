@@ -19,6 +19,7 @@ const BACKUP_PATH = path.join(
 const TRUSTED_BACKUP_SHA256 = null;
 
 const BACKUP_FORMAT = 'aleph.policy-backup.v1';
+const SUPPORTED_POLICY_VERSIONS = new Set(['aleph.policy.v1']);
 const VERIFIED_PROVENANCE = 'verified-pre-incident-backup';
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const POLICY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/u;
