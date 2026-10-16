@@ -1,5 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { hasSameOrigin } from '../../src/verify-origin.mjs';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabasePublishableKey =

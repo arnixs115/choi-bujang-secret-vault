@@ -1,4 +1,3 @@
-
 export function hasSameOrigin(request) {
   const origin = request.headers.origin;
   const host = request.headers.host;
