@@ -222,7 +222,11 @@
       이 앱은 메모 내용을 오프라인 캐시로 저장하지 않습니다.
     </div>
 
-    <section class="auth" aria-labelledby="memo-title">
+    <p id="device-status" class="status" role="status" aria-live="polite">
+      로그인 후 기기 승인 상태를 확인합니다.
+    </p>
+
+    <section id="memo-section" class="auth" aria-labelledby="memo-title" hidden>
       <h2 id="memo-title">가상 메모</h2>
 
       <form id="memo-form">
@@ -250,8 +254,8 @@
       ></p>
     </section>
 
-    <ul id="notes" aria-live="polite">
-      <li>로그인하면 메모를 불러옵니다.</li>
+    <ul id="notes" aria-live="polite" hidden>
+      <li>기기 승인 확인이 필요합니다.</li>
     </ul>
   </main>
 
@@ -262,6 +266,9 @@
     const loggedIn = document.querySelector('#logged-in');
     const userStatus = document.querySelector('#user-status');
     const authMessage = document.querySelector('#auth-message');
+
+    const memoSection = document.querySelector('#memo-section');
+    const deviceStatus = document.querySelector('#device-status');
 
     const list = document.querySelector('#notes');
     const memoForm = document.querySelector('#memo-form');
@@ -274,6 +281,18 @@
 
     let currentSession = null;
     let editingId = null;
+
+    let deviceApprovalConfirmed = false;
+
+    function lockMemoUntilApprovalCheck() {
+      deviceApprovalConfirmed = false;
+      memoSection.hidden = true;
+      list.hidden = true;
+
+      deviceStatus.textContent = currentSession?.user
+        ? '서버 기기 승인 확인 기능이 연결되지 않아 메모를 사용할 수 없습니다.'
+        : '로그인 후 기기 승인 상태를 확인합니다.';
+    }
 
     function renderAuthState(session) {
       const user = session?.user ?? null;
@@ -353,6 +372,11 @@
     }
 
     async function loadNotes() {
+      if (!deviceApprovalConfirmed) {
+        lockMemoUntilApprovalCheck();
+        return;
+      }
+
       try {
         const notes = await apiRequest('/api/notes');
 
@@ -484,7 +508,7 @@
         authMessage.className = 'status';
         authMessage.textContent = '로그인되었습니다.';
 
-        await loadNotes();
+        lockMemoUntilApprovalCheck();
       } catch (error) {
         authMessage.className = 'status error';
         authMessage.textContent = error.message;
@@ -587,7 +611,7 @@
           saved?.user?.email
         ) {
           saveSession({ user: saved.user });
-          await loadNotes();
+          lockMemoUntilApprovalCheck();
         } else {
           saveSession(null);
         }
