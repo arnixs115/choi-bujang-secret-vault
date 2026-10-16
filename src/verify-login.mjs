@@ -55,13 +55,55 @@ export function createLoginVerifier({ config, supabaseSecretKey, judgeKeySet,
     throw new TypeError('invalid_login_verifier_configuration');
   }
 
-  return async function verifyLoginAuthorization(authorization) {
-    if (typeof authorization !== 'string' || authorization.length > 8192) return null;
-    const match = BEARER.exec(authorization);
-    if (!match) return null;
-    const token = match[1];
+  return async function verifyLoginAuthorization(
+    authorization,
+    cookieHeader
+  ) {
+    const match =
+      typeof authorization === 'string' &&
+      authorization.length <= 8192
+        ? BEARER.exec(authorization)
+        : null;
+
+    let token = match?.[1] ?? null;
+    let fromCookie = false;
+
+    if (!token && typeof cookieHeader === 'string') {
+      const cookie = cookieHeader
+        .split(';')
+        .map(part => part.trim())
+        .find(part =>
+          part.startsWith('__Host-byte-back-session=')
+        );
+
+      const cookieToken = cookie?.slice(
+        '__Host-byte-back-session='.length
+      );
+
+      if (
+        typeof cookieToken === 'string' &&
+        /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(
+          cookieToken
+        )
+      ) {
+        token = cookieToken;
+        fromCookie = true;
+      }
+    }
+
+    if (!token) return null;
+
     let issuer;
-    try { issuer = decodeJwt(token).iss; } catch { return null; }
+    try {
+      issuer = decodeJwt(token).iss;
+    } catch {
+      return null;
+    }
+
+    // 판정기 토큰은 기존 Authorization 헤더 인증만 허용한다.
+    if (fromCookie && issuer !== bound.studentIssuer) {
+      return null;
+    }
     if (issuer === bound.judgeIssuer) {
       try {
         const { payload, protectedHeader } = await jwtVerify(token, keys, {

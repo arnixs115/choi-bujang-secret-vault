@@ -33,7 +33,7 @@ export default async function handler(request, response) {
     return;
   }
 
-  const login = await verifyLogin(request.headers.authorization);
+  const login = await verifyLogin(request.headers.authorization, request.headers.cookie);
 
   if (!login) {
     response.status(401).json({ error: 'UNAUTHORIZED' });

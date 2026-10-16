@@ -33,7 +33,7 @@ export default async function handler(request, response) {
   }
 
   const login = await verifyLogin(
-    request.headers.authorization
+    request.headers.authorization, request.headers.cookie
   );
 
   if (!login) {

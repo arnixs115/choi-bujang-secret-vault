@@ -152,6 +152,27 @@
       </p>
     </section>
 
+    <section class="device-panel" aria-labelledby="install-title">
+      <h2 id="install-title">웹앱 설치</h2>
+
+      <p class="device-help">
+        자료실을 홈 화면에 추가해 앱처럼 실행할 수 있습니다.
+        설치 여부는 기기 승인 여부와 별개입니다.
+      </p>
+
+      <button id="install-app" type="button">
+        홈 화면에 추가
+      </button>
+
+      <p
+        id="install-message"
+        class="status"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
+
+
     <section class="auth" aria-labelledby="auth-title">
       <h2 id="auth-title">자료실 로그인</h2>
 
@@ -249,7 +270,7 @@
     const cancelEditButton = document.querySelector('#cancel-edit');
     const memoMessage = document.querySelector('#memo-message');
 
-    const SESSION_KEY = 'byte-back-session';
+    const SESSION_KEY = 'byte-back-user';
 
     let currentSession = null;
     let editingId = null;
@@ -267,17 +288,18 @@
     function saveSession(session) {
       currentSession = session;
 
-      if (session) {
+      if (session?.user) {
         sessionStorage.setItem(
           SESSION_KEY,
-          JSON.stringify(session)
+          JSON.stringify({ user: session.user })
         );
       } else {
         sessionStorage.removeItem(SESSION_KEY);
       }
 
-      renderAuthState(session);
+      renderAuthState(currentSession);
     }
+
 
     function resetMemoForm() {
       editingId = null;
@@ -291,18 +313,11 @@
     }
 
     async function getAuthHeaders() {
-      if (
-        !currentSession?.access_token ||
-        !currentSession?.expires_at ||
-        currentSession.expires_at <=
-          Math.floor(Date.now() / 1000)
-      ) {
-        saveSession(null);
+      if (!currentSession?.user) {
         throw new Error('로그인이 필요합니다. 다시 로그인해 주세요.');
       }
 
       return {
-        Authorization: `Bearer ${currentSession.access_token}`,
         'Content-Type': 'application/json'
       };
     }
@@ -312,6 +327,7 @@
 
       const response = await fetch(url, {
         ...options,
+        credentials: 'same-origin',
         cache: 'no-store',
         headers: {
           ...authHeaders,
@@ -456,14 +472,13 @@
         }
 
         if (
-          !data?.access_token ||
-          !data?.expires_at ||
-          !data?.user
+          !data?.user?.id ||
+          !data?.user?.email
         ) {
           throw new Error('로그인 응답 형식이 올바르지 않습니다.');
         }
 
-        saveSession(data);
+        saveSession({ user: data.user });
         loginForm.reset();
 
         authMessage.className = 'status';
@@ -475,19 +490,36 @@
         authMessage.textContent = error.message;
       }
     });
-
-    logoutButton.addEventListener('click', () => {
-      saveSession(null);
-      list.replaceChildren();
-
-      resetMemoForm();
-
+    logoutButton.addEventListener('click', async () => {
       authMessage.className = 'status';
-      authMessage.textContent = '로그아웃되었습니다.';
+      authMessage.textContent = '로그아웃 중입니다.';
 
-      memoMessage.className = 'status';
-      memoMessage.textContent = '';
+      try {
+        const response = await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error('로그아웃 요청에 실패했습니다.');
+        }
+
+        saveSession(null);
+        list.replaceChildren();
+        resetMemoForm();
+
+        authMessage.className = 'status';
+        authMessage.textContent = '로그아웃되었습니다.';
+
+        memoMessage.className = 'status';
+        memoMessage.textContent = '';
+      } catch (error) {
+        authMessage.className = 'status error';
+        authMessage.textContent = error.message;
+      }
     });
+
 
     memoForm.addEventListener('submit', async event => {
       event.preventDefault();
@@ -542,20 +574,19 @@
     });
 
     // 페이지를 새로고침했을 때 현재 탭의 로그인 상태 복원
+    sessionStorage.removeItem('byte-back-session');
+
     const savedSession = sessionStorage.getItem(SESSION_KEY);
 
     if (savedSession) {
       try {
-        const session = JSON.parse(savedSession);
+        const saved = JSON.parse(savedSession);
 
         if (
-          session?.access_token &&
-          session?.user &&
-          Number.isFinite(session.expires_at) &&
-          session.expires_at > Math.floor(Date.now() / 1000)
+          saved?.user?.id &&
+          saved?.user?.email
         ) {
-          currentSession = session;
-          renderAuthState(session);
+          saveSession({ user: saved.user });
           await loadNotes();
         } else {
           saveSession(null);

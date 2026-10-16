@@ -60,13 +60,21 @@ export default async function handler(request, response) {
     });
     return;
   }
+  const maxAge = Math.max(
+    0,
+    data.session.expires_at - Math.floor(Date.now() / 1000)
+  );
+
+  response.setHeader(
+    'Set-Cookie',
+    `__Host-byte-back-session=${data.session.access_token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`
+  );
 
   response.status(200).json({
-    access_token: data.session.access_token,
-    expires_at: data.session.expires_at,
     user: {
       id: data.user.id,
       email: data.user.email,
     },
   });
+
 }
