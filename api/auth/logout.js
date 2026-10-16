@@ -1,3 +1,4 @@
+import { hasSameOrigin } from '../../src/verify-origin.mjs';
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
