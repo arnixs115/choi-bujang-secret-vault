@@ -1,5 +1,6 @@
 
 import { createLoginVerifier } from '../../../src/verify-login.mjs';
+import { hasSameOrigin } from '../../../src/verify-origin.mjs';
 import config from '../../../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
@@ -30,6 +31,16 @@ export default async function handler(request, response) {
 
   if (request.method !== 'POST') {
     response.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
+    return;
+  }
+
+  if (
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) &&
+    !hasSameOrigin(request)
+  ) {
+    response.status(403).json({
+      error: 'INVALID_ORIGIN',
+    });
     return;
   }
 

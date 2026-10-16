@@ -15,6 +15,13 @@ export default async function handler(request, response) {
     return;
   }
 
+  if (!hasSameOrigin(request)) {
+    response.status(403).json({
+      error: 'INVALID_ORIGIN',
+    });
+    return;
+  }
+
   const { email, password } = request.body ?? {};
 
   if (

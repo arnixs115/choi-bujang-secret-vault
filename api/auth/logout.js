@@ -10,6 +10,13 @@ export default async function handler(request, response) {
     return;
   }
 
+  if (!hasSameOrigin(request)) {
+    response.status(403).json({
+      error: 'INVALID_ORIGIN',
+    });
+    return;
+  }
+
   response.setHeader(
     'Set-Cookie',
     '__Host-byte-back-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'
