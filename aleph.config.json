@@ -12,7 +12,8 @@
   "allowedRoutes": [
   "GET /api/notes/:id",
   "GET /api/announcements",
-  "GET /api/announcements/:id"
+  "GET /api/announcements/:id",
+  "POST /api/notes/:id/restore"
   ],
   "originalApiUrl": "https://olwswefbgsglptdvhlbf.supabase.co/rest/v1/learning_notes",
   "restoreRoute": null

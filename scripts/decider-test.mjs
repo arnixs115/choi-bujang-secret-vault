@@ -49,6 +49,51 @@ export async function checkDecider({ decide, ruleIds }) {
       decision: 'allow',
     },
     {
+      name: '메모 단건 복원 경로 허용',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'POST',
+        path: '/notes/demo/restore',
+        route: 'POST /notes/:id/restore',
+        queryLength: 0,
+      }),
+      decision: 'allow',
+    },
+    {
+      name: '메모 단건 경로의 POST 거부',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'POST',
+        path: '/notes/demo',
+        route: 'POST /notes/:id',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+    {
+      name: '메모 복원 하위 경로 거부',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'POST',
+        path: '/notes/demo/restore/extra',
+        route: 'POST /notes/:id/restore/extra',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+    {
+      name: '메모 복원 경로의 GET 거부',
+      request: makeZoneRequest({
+        service: 'notes',
+        method: 'GET',
+        path: '/notes/demo/restore',
+        route: 'GET /notes/:id/restore',
+        queryLength: 0,
+      }),
+      decision: 'deny',
+    },
+
+    {
       name: '메모 전체 목록 거부',
       request: makeZoneRequest({
         service: 'notes',

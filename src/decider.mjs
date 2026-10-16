@@ -154,7 +154,17 @@ function resourceZoneAllows(request) {
 
   // 메모: 목록은 거부하고 단일 ID 경로만 허용
   // ID 형식은 제한하지 않으며, 소유권 검사는 API에서 수행
+  // 메모: 지정한 단건 조회와 단건 복원만 허용
+  // 소유권·해시 검증은 서버 API와 DB 함수에서 별도로 수행
   if (service === 'notes') {
+    if (
+      method === 'POST' &&
+      /^\/notes\/[^/?#]+\/restore$/u.test(path) &&
+      route === 'POST /notes/:id/restore'
+    ) {
+      return true;
+    }
+
     return (
       /^\/notes\/[^/?#]+$/u.test(path) &&
       method === 'GET' &&
