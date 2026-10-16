@@ -13,7 +13,10 @@
     "xdr:run": "node scripts/xdr-run.mjs",
     
     "policy:compare": "node scripts/compare-policy-backup.mjs",
-    "test:policy-backup": "node --test test/policy-backup.test.mjs"
+    "test:policy-backup": "node --test test/policy-backup.test.mjs",
+
+    "policy:restore": "node scripts/restore-policy-backup.mjs",
+    "test:policy-restore": "node --test test/policy-restore.test.mjs"
   },
   "engines": {
     "node": ">=22"
