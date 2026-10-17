@@ -1,4 +1,5 @@
 import { createLoginVerifier } from '../src/verify-login.mjs';
+import { requireApprovedDevice } from '../src/device-session.mjs';
 import { hasSameOrigin } from '../src/verify-origin.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
@@ -56,6 +57,18 @@ export default async function handler(request, response) {
   }
 
   const supabase = getSupabase();
+
+  // 로그인 검증 직후, 메모 DB 작업 전에 승인된 기기 세션을 확인한다. 실패하면 기본 거부.
+  const device = await requireApprovedDevice({
+    supabase,
+    login,
+    cookieHeader: request.headers.cookie,
+  });
+
+  if (!device.ok) {
+    response.status(device.status).json({ error: device.error });
+    return;
+  }
 
   // 목록 조회
   if (request.method === 'GET') {
