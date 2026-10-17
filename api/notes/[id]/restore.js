@@ -1,5 +1,6 @@
 
 import { createLoginVerifier } from '../../../src/verify-login.mjs';
+import { requireApprovedDevice } from '../../../src/device-session.mjs';
 import { hasSameOrigin } from '../../../src/verify-origin.mjs';
 import config from '../../../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
@@ -64,6 +65,20 @@ export default async function handler(request, response) {
     return;
   }
 
+  const supabase = getSupabase();
+
+  // 복원도 메모를 바꾸는 작업이므로 같은 기기 세션 검사를 먼저 통과해야 한다.
+  const device = await requireApprovedDevice({
+    supabase,
+    login,
+    cookieHeader: request.headers.cookie,
+  });
+
+  if (!device.ok) {
+    response.status(device.status).json({ error: device.error });
+    return;
+  }
+
   const { id } = request.query;
 
   if (typeof id !== 'string' || !UUID.test(id)) {
@@ -84,8 +99,6 @@ export default async function handler(request, response) {
     });
     return;
   }
-
-  const supabase = getSupabase();
 
   const { data, error } = await supabase.rpc(
     'restore_learning_note_snapshot',
