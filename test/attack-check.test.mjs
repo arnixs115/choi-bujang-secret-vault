@@ -61,17 +61,18 @@ test('금지 요청이 실제로 거부된 응답은 측정 결과(pass)로 기�
   assert.equal(denied.errorCode, 'UNAUTHORIZED');
   assert.equal(denied.headers['cache-control'], 'no-store');
   assert.deepEqual(denied.expectedStatus, [401]);
-  // 다른 출처·메서드 위반도 응답 상태와 헤더가 기록된다.
-  assert.equal(byId.get('device_status_cross_origin_denied').httpStatus, 403);
+  // 잘못된 메서드(GET)로 쓰기 전용 경로를 부른 거부도 상태와 헤더가 기록된다.
   assert.equal(byId.get('device_status_get_method_denied').headers.allow, 'POST');
   assert.equal(byId.get('device_status_get_method_denied').status, 'pass');
+  assert.equal(byId.get('login_get_method_denied').httpStatus, 405);
+  assert.equal(byId.get('restore_get_method_denied').httpStatus, 405);
 });
 
 test('정상 요청이 실제로 허용된 응답은 측정 결과(pass)로 기록된다', async () => {
   const deployment = createFakeDeployment();
   const byId = await run(deployment, { env: SESSION_ENV });
-  for (const id of ['anonymous_note_read', 'root_page_nosniff', 'device_status_session_valid',
-    'notes_list_with_device_session', 'own_note_read_with_device_session']) {
+  for (const id of ['anonymous_note_read', 'root_page_nosniff', 'notes_list_with_device_session',
+    'own_note_read_with_device_session']) {
     const record = byId.get(id);
     assert.equal(record.kind, 'normal', id);
     assert.equal(record.status, 'pass', id);
@@ -84,16 +85,42 @@ test('정상 요청이 실제로 허용된 응답은 측정 결과(pass)로 기�
   assert.equal(noDevice.errorCode, 'DEVICE_APPROVAL_REQUIRED');
   // 세션 값은 쿠키 요청 헤더로만 나갔다.
   const withCookie = deployment.calls.filter(call => call.headers.cookie);
-  assert.ok(withCookie.length >= 4);
+  assert.equal(withCookie.length, 3); // 사전 시험, 로그인만 있는 거부 시험, 단건 조회
   assert.ok(withCookie.every(call => call.url.includes('/api/')));
+});
+
+test('GET·HEAD만 보내고 쓰기 요청이 필요한 시험은 보내지 않고 미실행으로 남긴다', async () => {
+  const deployment = createFakeDeployment();
+  const byId = await run(deployment, { env: SESSION_ENV });
+  assert.ok(deployment.calls.length > 0);
+  assert.ok(deployment.calls.every(call => ['GET', 'HEAD'].includes(call.method)),
+    '쓰기 메서드로 요청을 보냄');
+  assert.ok(deployment.calls.every(call => call.headers.origin === undefined), 'Origin을 꾸미는 요청을 보냄');
+  const writes = ['login_cross_origin_denied', 'login_empty_input_rejected', 'anonymous_note_create_denied',
+    'anonymous_note_delete_denied', 'cross_origin_note_create_denied', 'notes_patch_method_denied',
+    'anonymous_restore_denied', 'cross_origin_restore_denied', 'device_status_anonymous_denied',
+    'device_status_cross_origin_denied', 'device_register_options_anonymous_denied',
+    'device_auth_verify_anonymous_denied', 'device_status_session_valid', 'own_note_write_allowed',
+    'cross_user_restore_denied', 'own_note_restore_allowed'];
+  for (const id of writes) {
+    const record = byId.get(id);
+    assert.ok(record, id);
+    assert.ok(!['GET', 'HEAD'].includes(record.method), id);
+    assert.equal(record.status, 'not_run', id);
+    for (const field of RESPONSE_FIELDS) assert.equal(record[field], null, `${id}.${field}`);
+  }
+  // 시험표의 쓰기 요청 시험은 모두 미실행이고, 실측 기록은 모두 GET·HEAD다.
+  for (const record of byId.values()) {
+    if (record.status === 'pass' || record.status === 'fail') assert.ok(['GET', 'HEAD'].includes(record.method), record.testId);
+  }
 });
 
 test('유효한 세션을 확보하지 못하면 세션이 필요한 정상 요청은 성공으로 기록되지 않는다', async () => {
   // 1) 세션 값이 없다.
   const none = createFakeDeployment();
   const missing = await run(none, { env: {} });
-  const needsSession = ['device_status_session_valid', 'notes_login_without_device_session_denied',
-    'notes_list_with_device_session', 'own_note_read_with_device_session'];
+  const needsSession = ['notes_list_with_device_session', 'notes_login_without_device_session_denied',
+    'own_note_read_with_device_session'];
   for (const id of needsSession) {
     assert.equal(missing.get(id).status, 'not_run', id);
     assert.match(missing.get(id).reason, /세션/u);
@@ -103,8 +130,9 @@ test('유효한 세션을 확보하지 못하면 세션이 필요한 정상 요�
   // 2) 세션 값은 있지만 서버가 기기 세션을 승인하지 않는다 → 사전 시험이 fail, 나머지는 보내지 않는다.
   const rejecting = createFakeDeployment({ deviceSessionValid: false });
   const invalid = await run(rejecting, { env: SESSION_ENV });
-  assert.equal(invalid.get('device_status_session_valid').status, 'fail');
-  assert.equal(invalid.get('device_status_session_valid').httpStatus, 200);
+  assert.equal(invalid.get('notes_list_with_device_session').status, 'fail');
+  assert.equal(invalid.get('notes_list_with_device_session').httpStatus, 403);
+  assert.equal(invalid.get('notes_list_with_device_session').errorCode, 'DEVICE_APPROVAL_REQUIRED');
   for (const id of needsSession.slice(1)) {
     assert.equal(invalid.get(id).status, 'not_run', id);
     assert.match(invalid.get(id).reason, /기기 세션을 확보하지 못함/u);
@@ -114,19 +142,19 @@ test('유효한 세션을 확보하지 못하면 세션이 필요한 정상 요�
   // 3) 형식이 맞지 않는 값은 보내지 않는다.
   const bad = createFakeDeployment();
   const malformed = await run(bad, { env: { [ATTACK_ENV.login]: 'not a token', [ATTACK_ENV.device]: 'x' } });
-  assert.equal(malformed.get('device_status_session_valid').status, 'not_run');
+  assert.equal(malformed.get('notes_list_with_device_session').status, 'not_run');
   assert.equal(bad.calls.some(call => call.headers.cookie), false);
 });
 
 test('요청 ID는 응답 헤더에 있을 때만 기록하고 없으면 null이다', async () => {
   const withId = await run(createFakeDeployment({ requestId: true }));
   const sentWith = [...withId.values()].filter(r => r.httpStatus !== null);
-  assert.ok(sentWith.length > 10);
+  assert.equal(sentWith.length, 9);
   assert.ok(sentWith.every(r => r.requestId === VERCEL_ID && r.requestIdSource === 'x-vercel-id'));
 
   const withoutId = await run(createFakeDeployment({ requestId: false }));
   const sentWithout = [...withoutId.values()].filter(r => r.httpStatus !== null);
-  assert.ok(sentWithout.length > 10);
+  assert.equal(sentWithout.length, 9);
   assert.ok(sentWithout.every(r => r.requestId === null && r.requestIdSource === null));
   // 보내지 않은 시험에는 어느 쪽에서도 요청 ID가 없다.
   for (const r of [...withId.values(), ...withoutId.values()]) {
@@ -199,7 +227,7 @@ test('기대 결과와 실제 결과가 다르면 fail로 기록된다', async (
   assert.equal(byId.get('root_page_nosniff').status, 'fail');
   assert.match(byId.get('root_page_nosniff').reason, /x-content-type-options/u);
   // 같은 배포의 맞는 응답은 여전히 pass다.
-  assert.equal(byId.get('anonymous_note_create_denied').status, 'pass');
+  assert.equal(byId.get('login_get_method_denied').status, 'pass');
 });
 
 test('응답을 받지 못한 요청은 fail이며 응답 값을 만들어 넣지 않는다', async () => {

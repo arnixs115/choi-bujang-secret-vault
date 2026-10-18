@@ -858,7 +858,7 @@ npm run detect:test     # 가상 사건 연습
 npm run xdr:run -- brute-force
 ```
 
-배포한 앱에 대한 실제 점검(세션 값이 없으면 로그인 없는 요청 21건을 보냅니다):
+배포한 앱에 대한 실제 점검. 점검기는 **GET만** 보냅니다(세션 값이 없으면 로그인 없는 GET 9건). POST·PUT·PATCH·DELETE가 필요한 시험은 보내지 않고 `not_run`으로 남깁니다:
 
 ```bash
 node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.runAttackChecks(JSON.parse(require('fs').readFileSync('aleph.config.json')))).map(r=>({id:r.testId,status:r.status,http:r.httpStatus,rid:r.requestId}))))"
@@ -881,7 +881,7 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
 | 5 | 4의 목록에서 고른 ID로 `GET /api/notes/:id` | 200, 내 메모 | 남의 ID는 404 `NOTE_NOT_FOUND` |
 | 6 | `GET /api/device/status` | — | 405 `METHOD_NOT_ALLOWED`, `Allow: POST` |
 
-1, 2, 6은 위 실제 점검에서 로그인 없이 확인되는 항목입니다. 3~5는 유효한 로그인·기기 세션이 필요하며 아직 실제 배포에서 확인하지 않았습니다.
+1과 6은 점검기가 로그인 없이 GET으로 확인하는 항목입니다. 2는 POST라 점검기가 보내지 않으므로 직접 확인해야 합니다. 3~5는 유효한 로그인·기기 세션이 필요하며 아직 실제 배포에서 확인하지 않았습니다.
 
 #### 5-1. 작전실 결과 만들기와 확인
 
@@ -889,7 +889,7 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
 
 1. `npm ci`
 2. `npm run test:attack && npm run test:ops` — 가상 응답으로 점검기와 작전실 코드를 확인합니다. 실제 배포 결과가 아닙니다.
-3. `npm run attack:results` — 실제 배포에 로그인 없는 요청 21건을 보내고 `public/attack-results.json`을 씁니다. 승인된 기기 세션이 필요한 정상 요청은 `ATTACK_CHECK_LOGIN_TOKEN`, `ATTACK_CHECK_DEVICE_TOKEN`을 학생이 직접 환경에 넣었을 때만 보내고, 없으면 `not_run`으로 남습니다.
+3. `npm run attack:results` — 실제 배포에 로그인 없는 GET 요청 9건을 보내고 `public/attack-results.json`을 씁니다. 승인된 기기 세션이 필요한 정상 요청은 `ATTACK_CHECK_LOGIN_TOKEN`, `ATTACK_CHECK_DEVICE_TOKEN`을 학생이 직접 환경에 넣었을 때만 보내고, 없으면 `not_run`으로 남습니다.
 4. 콘솔에 나온 통과·실패·미실행·미확인 개수를 확인합니다. `fail`이 있으면 해당 항목의 `reason`부터 봅니다.
 5. `public/attack-results.json`을 커밋하고 push해 Vercel이 다시 배포하게 합니다.
 6. 배포 주소의 `/`를 열어 작전실의 개수가 4에서 본 개수와 같은지 확인합니다.
@@ -928,7 +928,7 @@ node scripts/restore-policy-backup.mjs --apply --confirm   # 실제 적용
 
 #### 8. 지금까지 실제로 확인한 것
 
-학생이 로컬에서 실제 배포 주소로 점검기를 실행해 보고한 표(36개 시험) 기준입니다. 표에는 상태·HTTP 코드·요청 ID만 있었고 확인 시각과 커밋은 없었습니다. 5-1절의 `public/attack-results.json`을 만들면 이 표의 숫자를 그 파일의 값으로 바꿔 적습니다.
+학생이 로컬에서 실제 배포 주소로 점검기를 실행해 보고한 표(36개 시험) 기준입니다. 표에는 상태·HTTP 코드·요청 ID만 있었고 확인 시각과 커밋은 없었습니다. 이 표는 쓰기 요청도 보내던 이전 점검기의 결과입니다. 현재 점검기는 GET만 보내므로 같은 숫자가 다시 나오지 않으며, 5-1절의 `public/attack-results.json`을 만들면 이 표의 숫자를 그 파일의 값으로 바꿔 적습니다.
 
 | 상태 | 개수 | 내용 |
 |---|---|---|

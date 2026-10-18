@@ -5,8 +5,11 @@
 //
 // 시험용 세션(선택): 승인된 기기 세션이 필요한 정상 요청은 아래 환경 변수에 본인이 직접 값을 넣었을 때만
 // 보낸다. 값은 요청 헤더에만 쓰이고 기록·출력되지 않는다. 먼저 보내는 사전 시험
-// (device_status_session_valid)이 통과하지 못하면 유효한 세션을 확보하지 못한 것으로 보고,
+// (notes_list_with_device_session)이 통과하지 못하면 유효한 세션을 확보하지 못한 것으로 보고,
 // 세션이 필요한 나머지 시험은 보내지 않고 not_run으로 남긴다.
+//
+// 보내는 요청: 이 점검기는 GET과 HEAD만 보낸다. POST·PUT·PATCH·DELETE 요청이 필요한 시험은
+// (격리된 실행 환경에서 쓰기 요청을 보낼 수 없으므로) 요청을 보내지 않고 not_run으로 남긴다.
 //   ATTACK_CHECK_LOGIN_TOKEN   로그인 세션 쿠키(__Host-byte-back-session)의 값
 //   ATTACK_CHECK_DEVICE_TOKEN  기기 세션 쿠키(__Host-byte-back-device-session)의 값
 import {
@@ -37,6 +40,8 @@ const LOGIN_TOKEN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 const DEVICE_TOKEN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const NO_STORE = { 'cache-control': 'no-store' };
+// 이 점검기가 실제로 보낼 수 있는 메서드. 그 밖의 메서드를 쓰는 시험은 보내지 않는다.
+const SENDABLE_METHODS = Object.freeze(['GET', 'HEAD']);
 
 const http = (stage, testId, kind, method, path, expected, expectedStatus, extra = {}) => ({
   type: 'http', stage, testId, kind, method, path, expected, expectedStatus,
@@ -155,19 +160,15 @@ const CATALOG = Object.freeze([
   http(11, 'device_auth_verify_anonymous_denied', 'forbidden', 'POST', '/api/device/auth-verify',
     '로그인 없는 기기 인증 확인은 401 UNAUTHORIZED로 거부', [401],
     { origin: 'same', body: {}, errorCode: 'UNAUTHORIZED' }),
-  // 사전 시험: 이 시험이 통과해야 아래 세션 필요 시험을 보낸다.
+  // 쓰기 요청(POST)이라 보내지 않는다. 세션 확인은 아래 GET 사전 시험이 맡는다.
   http(11, 'device_status_session_valid', 'normal', 'POST', '/api/device/status',
     '승인된 기기 세션으로 기기 상태를 조회하면 200 session_valid', [200], {
-      origin: 'same', body: {}, auth: 'both', role: 'precheck',
-      verify: ({ json }) => (json?.state === 'session_valid' && json.memoAccess === true)
-        || '응답의 state가 session_valid가 아님',
+      origin: 'same', body: {}, auth: 'both',
     }),
-  http(11, 'notes_login_without_device_session_denied', 'forbidden', 'GET', '/api/notes',
-    '로그인만 있고 기기 세션이 없으면 403 DEVICE_APPROVAL_REQUIRED로 거부', [403],
-    { auth: 'login', needs: 'session', errorCode: 'DEVICE_APPROVAL_REQUIRED' }),
+  // 사전 시험: 이 시험이 통과해야 아래 세션 필요 시험을 보낸다.
   http(11, 'notes_list_with_device_session', 'normal', 'GET', '/api/notes',
     '승인된 기기 세션의 본인 메모 목록 조회는 200으로 허용', [200], {
-      auth: 'both', needs: 'session',
+      auth: 'both', role: 'precheck',
       verify: ({ json, ctx }) => {
         if (!Array.isArray(json)) return '응답이 메모 목록 배열이 아님';
         // 다음 시험이 쓸 메모 ID만 기억한다. 제목·본문은 읽지도 기록하지도 않는다.
@@ -176,6 +177,9 @@ const CATALOG = Object.freeze([
         return true;
       },
     }),
+  http(11, 'notes_login_without_device_session_denied', 'forbidden', 'GET', '/api/notes',
+    '로그인만 있고 기기 세션이 없으면 403 DEVICE_APPROVAL_REQUIRED로 거부', [403],
+    { auth: 'login', needs: 'session', errorCode: 'DEVICE_APPROVAL_REQUIRED' }),
   http(11, 'own_note_read_with_device_session', 'normal', 'GET', '/api/notes/:id',
     '승인된 기기 세션의 본인 메모 단건 조회는 200으로 허용', [200], {
       auth: 'both', needs: 'session', useFirstNote: true,
@@ -224,7 +228,7 @@ function sessionBlock(def, ctx) {
     return `유효한 로그인·기기 세션을 확보하지 못함: 시험용 세션 값(${ATTACK_ENV.login}, ${ATTACK_ENV.device})이 없어 보내지 않음`;
   }
   if (state === 'malformed') return '시험용 세션 값의 형식이 맞지 않아 보내지 않음';
-  return '유효한 기기 세션을 확보하지 못함: 사전 시험 device_status_session_valid가 통과하지 못해 보내지 않음';
+  return '유효한 기기 세션을 확보하지 못함: 사전 시험 notes_list_with_device_session이 통과하지 못해 보내지 않음';
 }
 
 function cleanHeader(value) {
@@ -342,6 +346,10 @@ async function execute(def, ctx) {
 
 async function runOne(def, ctx) {
   if (def.type === 'hold') return unsent(def, def.status, def.reason);
+  // 쓰기 요청이 필요한 시험은 보내지 않는다. 응답·요청 ID·시각은 모두 null로 남는다.
+  if (!SENDABLE_METHODS.includes(def.method)) {
+    return unsent(def, 'not_run', `${def.method} 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행`);
+  }
   if (def.needs === 'session' || def.role === 'precheck') {
     const blocked = sessionBlock(def, ctx);
     if (blocked) return unsent(def, 'not_run', blocked);
