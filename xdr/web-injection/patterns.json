@@ -1,0 +1,33 @@
+
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "web-injection",
+  "technique": {
+    "id": "T1190",
+    "name": "Exploit Public-Facing Application",
+    "source": "https://attack.mitre.org/techniques/T1190/"
+  },
+  "patterns": [
+    {
+      "id": "sql-syntax-in-request-argument",
+      "name": "요청 인자 안의 SQL 구문",
+      "condition": "URL의 쿼리 인자 등 요청 입력값을 확인했을 때 SQL 연산자나 구문이 문맥상 실행 가능한 SQL 조합으로 나타나는지 확인한다. 일반적인 검색어에 select 같은 단어가 한 번 있다는 사실만으로는 해당하지 않으며, 같은 출발 주소에서 유사한 표식이 반복되면 의심 신호를 높인다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션의 취약점을 악용하는 행위를 설명하며, 요청 입력값의 SQL 삽입 징후는 이러한 악용 시도를 조사할 단서가 된다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    },
+    {
+      "id": "script-tag-in-request-argument",
+      "name": "요청 인자 안의 스크립트 태그",
+      "condition": "URL 쿼리 인자 등 요청 입력값에서 실제 HTML 스크립트 태그 형태인 <script 또는 인코딩된 동등 형태가 나타나는지 확인한다. script라는 일반 단어만 있는 경우는 제외하며, 같은 출발 주소에서 반복되는 횟수와 다른 의심 신호를 함께 고려한다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션을 악용하는 기법을 다루며, 요청 입력값의 스크립트 태그는 웹 애플리케이션 악용 시도를 조사할 단서가 될 수 있다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    },
+    {
+      "id": "repeated-path-traversal",
+      "name": "반복되는 경로 거슬러 올라가기 표기",
+      "condition": "파일 경로 등 요청 입력값에서 ../ 또는 인코딩된 동등 형태가 반복되는지 확인한다. 같은 출발 주소에서 짧은 시간 동안 반복 횟수가 증가하면 의심 신호를 높이며, up 같은 일반 단어 하나만으로는 경로 이탈로 판정하지 않는다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션의 취약점 악용을 설명하며, 반복되는 경로 이탈 표기는 파일 경로 처리 취약점을 노리는 요청인지 조사할 단서가 된다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    }
+  ]
+}

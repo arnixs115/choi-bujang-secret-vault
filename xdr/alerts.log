@@ -54,3 +54,29 @@
 {"timestamp":"2026-10-12T13:25:18.894Z","moduleKey":"brute-force","alertId":"bf-26","action":"record","confidence":0.05,"reason":"일치하는 무차별 대입 패턴 없음","ruleStatus":"not_eligible","ruleId":null,"expiresAt":null}
 {"timestamp":"2026-10-12T13:25:18.895Z","moduleKey":"brute-force","alertId":"bf-27","action":"record","confidence":0.05,"reason":"일치하는 무차별 대입 패턴 없음","ruleStatus":"not_eligible","ruleId":null,"expiresAt":null}
 {"timestamp":"2026-10-12T13:25:18.895Z","moduleKey":"brute-force","alertId":"bf-28","action":"record","confidence":0.05,"reason":"일치하는 무차별 대입 패턴 없음","ruleStatus":"not_eligible","ruleId":null,"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.813Z","alertId":"wi-01","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.818Z","alertId":"wi-02","action":"block","confidence":0.95,"reason":"요청 인자 안의 스크립트 태그","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.819Z","alertId":"wi-03","action":"block","confidence":0.95,"reason":"반복되는 경로 거슬러 올라가기 표기","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.820Z","alertId":"wi-04","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.821Z","alertId":"wi-05","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문, 요청 인자 안의 스크립트 태그","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.822Z","alertId":"wi-06","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.823Z","alertId":"wi-07","action":"block","confidence":0.95,"reason":"반복되는 경로 거슬러 올라가기 표기","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.823Z","alertId":"wi-08","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문","ruleResult":{"status":"skipped","skipReason":"missing_source_ip"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.824Z","alertId":"wi-09","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.825Z","alertId":"wi-10","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.826Z","alertId":"wi-11","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.827Z","alertId":"wi-12","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.828Z","alertId":"wi-13","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.828Z","alertId":"wi-14","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.829Z","alertId":"wi-15","action":"alert","confidence":0.6,"reason":"미확정 단발 신호 — SQL 구문·스크립트 태그·경로 거슬러 올라가기 패턴을 특정할 수 없음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.830Z","alertId":"wi-16","action":"alert","confidence":0.6,"reason":"미확정 단발 신호 — SQL 구문·스크립트 태그·경로 거슬러 올라가기 패턴을 특정할 수 없음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.831Z","alertId":"wi-17","action":"alert","confidence":0.6,"reason":"미확정 단발 신호 — SQL 구문·스크립트 태그·경로 거슬러 올라가기 패턴을 특정할 수 없음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.831Z","alertId":"wi-18","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.832Z","alertId":"wi-19","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.833Z","alertId":"wi-20","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.833Z","alertId":"wi-21","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.834Z","alertId":"wi-22","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.835Z","alertId":"wi-23","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.835Z","alertId":"wi-24","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.836Z","alertId":"wi-25","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
+{"ts":"2026-10-18T13:05:57.837Z","alertId":"wi-26","action":"record","confidence":0,"reason":"등록 패턴과 일치하지 않음","ruleResult":{"status":"skipped","skipReason":"not_block"},"expiresAt":null}
