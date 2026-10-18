@@ -406,6 +406,13 @@ test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지
       if (!(attempt.attackId in sent)) assert.equal(attempt.observed, 'not_run', attempt.attackId);
     }
     assert.equal(observed.get('anonymous_note_create_denied') ?? 'not_run', 'not_run');
+    // 6·7·9단계를 포함해 1~11단계가 모두 제출 기록에 들어 있고, 정상·금지 시험이 둘 다 있다.
+    const checkerSource = readFileSync(join(dir, 'src', 'attack-check.mjs'), 'utf8');
+    const stageOf = new Map([...checkerSource.matchAll(/^  (?:http|hold)\((\d+), '([^']+)', '([a-z]+)'/gmu)].map(m => [m[2], { stage: Number(m[1]), kind: m[3] }]));
+    const covered = new Set(bundle.attackAttempts.map(a => stageOf.get(a.attackId)?.stage));
+    for (let stage = 1; stage <= 11; stage += 1) assert.ok(covered.has(stage), `${stage}단계가 제출 기록에 없음`);
+    const kinds = new Set(bundle.attackAttempts.map(a => stageOf.get(a.attackId)?.kind));
+    assert.ok(kinds.has('normal') && kinds.has('forbidden'));
     // artifacts에는 제출 묶음 하나만 만들어진다. 부가 파일은 쓰지 않는다.
     assert.deepEqual(readdirSync(join(dir, 'artifacts')), ['submission.json']);
     assert.doesNotMatch(result.stdout + result.stderr, /cookie|SECRET/iu);
@@ -442,19 +449,26 @@ test('HTTP 응답을 받지 못한 시험은 상태를 지어내지 않고 not_r
   assert.ok(attempts.every(a => !a.observed.startsWith('HTTP') && a.observed !== 'no_response'));
 });
 
-test('attackAttempts가 20개를 넘으면 실제로 보낸 시험을 먼저 넣고 표 순서를 지킨다', () => {
+test('attackAttempts가 20개를 넘으면 보낸 시험, 보낸 시험이 없는 단계, 정상 시험 순으로 채우고 표 순서를 지킨다', () => {
   const records = [];
-  for (let i = 0; i < 30; i += 1) records.push(unsentRecord({ testId: `u${i}`, method: i % 2 ? 'GET' : 'POST' }));
-  records.splice(5, 0, fakeRecord({ testId: 'sent_a' }));
-  records.push(fakeRecord({ testId: 'sent_b' }));
+  // 1·2단계는 보낸 시험이 있고, 6단계는 보낸 시험이 없다. 나머지는 쓰기·읽기 시험이 번갈아 쌓인다.
+  records.push(fakeRecord({ testId: 'sent_stage1', stage: 1 }), fakeRecord({ testId: 'sent_stage2', stage: 2 }));
+  for (let i = 0; i < 24; i += 1) {
+    records.push(unsentRecord({ testId: `u${i}`, stage: 1 + (i % 2), method: i % 2 ? 'GET' : 'POST' }));
+  }
+  records.push(unsentRecord({ testId: 'stage6_forbidden', stage: 6 }), unsentRecord({ testId: 'stage6_normal', stage: 6, kind: 'normal' }));
+  records.push(unsentRecord({ testId: 'normal_late', stage: 2, kind: 'normal' }));
   const attempts = toAttackAttempts(records);
   assert.equal(attempts.length, 20);
   const ids = attempts.map(a => a.attackId);
-  assert.ok(ids.includes('sent_a') && ids.includes('sent_b'));
-  // 쓰기 요청이라 보내지 않은 시험 15개가 모두 들어가고, 남은 3자리만 읽기 시험이 표 순서대로 채운다.
+  for (const id of ['sent_stage1', 'sent_stage2', 'stage6_forbidden', 'stage6_normal', 'normal_late']) {
+    assert.ok(ids.includes(id), id);
+  }
   const picked = ids.map(id => records.find(r => r.testId === id));
-  assert.equal(picked.filter(r => r.method === 'POST').length, 15);
-  assert.deepEqual(picked.filter(r => r.method === 'GET' && r.status === 'not_run').map(r => r.testId), ['u1', 'u3', 'u5']);
+  // 남은 15자리는 쓰기 요청이라 보내지 않은 시험 12개가 먼저, 그다음 읽기 시험이 표 순서대로 3개를 채운다.
+  const rest = picked.filter(r => r.status === 'not_run' && r.stage !== 6 && r.testId !== 'normal_late');
+  assert.equal(rest.filter(r => r.method === 'POST').length, 12);
+  assert.deepEqual(rest.filter(r => r.method === 'GET').map(r => r.testId), ['u1', 'u3', 'u5']);
   assert.deepEqual(ids, records.map(r => r.testId).filter(id => ids.includes(id)));
   assert.throws(() => validateAttackAttempts(records.map(toAttackAttempt)), /1~20/u);
   assert.throws(() => validateAttackAttempts([{ attackId: 'x', expected: 'y' }]), /attackId·expected·observed/u);

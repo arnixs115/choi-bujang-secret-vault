@@ -170,12 +170,20 @@ export function toAttackAttempt(record) {
   return { attackId: record.testId, expected: record.expected, observed };
 }
 
-// 채점표는 한 묶음에 최대 20개를 받는다. 기록이 더 많으면 실제로 요청을 보낸 시험을 모두 먼저 넣고,
-// 남는 자리는 쓰기 요청이라 보내지 않은 시험, 나머지 순으로 표 순서대로 채운다.
+// 채점표는 한 묶음에 최대 20개를 받는다. 기록이 더 많으면 아래 순서로 자리를 채우고, 고른 뒤에는 표 순서로 되돌린다.
+//   1) 실제로 요청을 보낸 시험 전부
+//   2) 보낸 시험이 하나도 없는 단계(6·7·9단계 등)의 시험 전부 — 어느 단계도 제출 기록에서 빠지지 않게
+//   3) 보내지 않은 정상(normal) 시험 — 금지 요청 거부와 정상 요청 허용이 둘 다 기록에 남게
+//   4) 나머지(쓰기 요청이라 보내지 않은 시험이 먼저, 그다음 읽기 시험)
+// 어느 경우에도 보내지 않은 시험의 observed는 not_run이고, 순서는 결과를 바꾸지 않는다.
 export function toAttackAttempts(records, max = MAX_SUBMISSION_ATTEMPTS) {
+  const sent = (record) => record.status === 'pass' || record.status === 'fail';
+  const sentStages = new Set(records.filter(sent).map((record) => record.stage));
   const rank = (record) => {
-    if (record.status === 'pass' || record.status === 'fail') return 0;
-    return ATTACK_READ_METHODS.includes(record.method) ? 2 : 1;
+    if (sent(record)) return 0;
+    if (!sentStages.has(record.stage)) return 1;
+    if (record.kind === 'normal') return 2;
+    return ATTACK_READ_METHODS.includes(record.method) ? 4 : 3;
   };
   const chosen = records
     .map((record, index) => ({ record, index }))
