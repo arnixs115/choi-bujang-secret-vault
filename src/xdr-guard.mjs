@@ -31,7 +31,7 @@ export const isXdrRuleId = (id) => typeof id === 'string' && id.startsWith(XDR_R
 /** 엔진 계약과 같은 5개 이름만 가진 거부 응답. */
 export function toDenyResponse(request, rule) {
   return {
-    schema: DECISION_SCHEMA,
+    schema: 'aleph.decision.v1',
     requestId: request?.requestId,
     decision: 'deny',
     reasonCode: XDR_DENY_REASON_CODE,
@@ -39,14 +39,9 @@ export function toDenyResponse(request, rule) {
   };
 }
 
-/** 거부 근거(응답 밖 정보). */
 export function toEvidence(rule) {
-  return {
-    source: XDR_DENY_SOURCE,
-    ruleId: rule.id,
-    evidenceAlertId: rule.evidenceAlertId,
-    expiresAt: rule.expiresAt,
-  };
+  return { source: XDR_DENY_SOURCE, ruleId: rule.id,
+           evidenceAlertId: rule.evidenceAlertId, expiresAt: rule.expiresAt };
 }
 
 async function loadDefaultDecide() {
