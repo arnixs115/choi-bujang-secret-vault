@@ -1,0 +1,803 @@
+{
+  "schema": "aleph.attack-results.v1",
+  "generatedAt": "2026-10-18T04:15:16.637Z",
+  "summary": {
+    "total": 36,
+    "pass": 20,
+    "fail": 1,
+    "not_run": 10,
+    "unverified": 5,
+    "measured": 21
+  },
+  "records": [
+    {
+      "stage": 1,
+      "testId": "anonymous_note_read",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/data.json",
+      "expected": "비로그인 화면에서 가상 메모를 확인",
+      "expectedStatus": [
+        200
+      ],
+      "status": "fail",
+      "httpStatus": 200,
+      "errorCode": null,
+      "headers": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::mfxdh-1792296903937-99b36f430495",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:03.321Z",
+      "observed": "비로그인 요청에서 확인 표시가 보이지 않음 (HTTP 200)",
+      "reason": "응답에 공개 가상 메모 확인 표시가 없음"
+    },
+    {
+      "stage": 2,
+      "testId": "root_page_nosniff",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/",
+      "expected": "첫 화면이 열리고 X-Content-Type-Options: nosniff 헤더가 있음",
+      "expectedStatus": [
+        200
+      ],
+      "status": "pass",
+      "httpStatus": 200,
+      "errorCode": null,
+      "headers": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::xxnrz-1792296904339-180e1b616c66",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:03.860Z",
+      "observed": "HTTP 200 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 2,
+      "testId": "aleph_json_public",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/aleph.json",
+      "expected": "배포 식별 파일이 열림",
+      "expectedStatus": [
+        200
+      ],
+      "status": "pass",
+      "httpStatus": 200,
+      "errorCode": null,
+      "headers": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::7mrdc-1792296905085-d07aa1daa032",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:04.606Z",
+      "observed": "HTTP 200 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 2,
+      "testId": "repo_exposure_search",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/data.json",
+      "expected": "가상 메모 문구가 GitHub 최신 파일과 옛 커밋에 남아 있지 않음",
+      "expectedStatus": null,
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "GitHub 파일·옛 커밋 검색은 HTTP 시험이 아니며 이번 실행에서 하지 않음"
+    },
+    {
+      "stage": 3,
+      "testId": "anonymous_notes_list_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "로그인 없는 목록 조회는 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::7mrdc-1792296905485-41c2906c4e2f",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:05.007Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 4,
+      "testId": "anonymous_note_by_id_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes/:id",
+      "expected": "로그인 없이 메모 ID로 조회하면 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::c54kz-1792296906666-c50e0320044b",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:06.187Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 4,
+      "testId": "cross_user_note_read_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes/:id",
+      "expected": "다른 사용자의 메모 ID는 404 NOTE_NOT_FOUND로 거부",
+      "expectedStatus": [
+        404
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "두 번째 시험 계정의 메모 ID와 두 계정의 로그인·기기 세션이 필요하며 이번 실행에서 제공되지 않음"
+    },
+    {
+      "stage": 5,
+      "testId": "login_cross_origin_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "expected": "다른 출처에서 온 로그인 요청은 403 INVALID_ORIGIN으로 거부",
+      "expectedStatus": [
+        403
+      ],
+      "status": "pass",
+      "httpStatus": 403,
+      "errorCode": "INVALID_ORIGIN",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::mm4sp-1792296907700-8c0b156d78f2",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:07.220Z",
+      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 5,
+      "testId": "login_empty_input_rejected",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "expected": "이메일·비밀번호가 없는 로그인 요청은 400 INVALID_LOGIN_INPUT으로 거부",
+      "expectedStatus": [
+        400
+      ],
+      "status": "pass",
+      "httpStatus": 400,
+      "errorCode": "INVALID_LOGIN_INPUT",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::c54kz-1792296908580-7a173eab609d",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:08.101Z",
+      "observed": "HTTP 400 · INVALID_LOGIN_INPUT · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 5,
+      "testId": "login_get_method_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/auth/login",
+      "expected": "GET 로그인 요청은 405 METHOD_NOT_ALLOWED로 거부",
+      "expectedStatus": [
+        405
+      ],
+      "status": "pass",
+      "httpStatus": 405,
+      "errorCode": "METHOD_NOT_ALLOWED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::c54kz-1792296908965-9f9b88f00eb1",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:08.486Z",
+      "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 6,
+      "testId": "registered_device_read_allowed",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "등록 기기의 정상 자료 조회는 허용(allow)",
+      "expectedStatus": null,
+      "status": "unverified",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "로컬 가상 시험(npm run decider:test)은 따로 있으나 이번 실행에서 실행하지 않았고, 운영 엔진의 실제 판정은 HTTP 응답으로 확인하지 못함"
+    },
+    {
+      "stage": 6,
+      "testId": "unregistered_device_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "미등록 기기의 요청은 거부(deny, device_not_registered)",
+      "expectedStatus": null,
+      "status": "unverified",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "미등록 기기를 쓰는 실제 요청은 운영 심판이 수행하며 이 점검기가 HTTP로 만들 수 없음"
+    },
+    {
+      "stage": 7,
+      "testId": "step_up_required_before_notes",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "복합 이상 접속에서는 추가 확인(step_up) 전 자료 요청이 차단됨",
+      "expectedStatus": null,
+      "status": "unverified",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "재인증 전 요청의 서버 차단과 엔진의 재인증 검증은 HTTP 응답으로 확인하지 못함"
+    },
+    {
+      "stage": 7,
+      "testId": "notes_after_reauth_allowed",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "추가 확인을 마친 뒤의 자료 요청은 허용",
+      "expectedStatus": null,
+      "status": "unverified",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "재인증 이후 요청이 판정 엔진에서 다시 평가되는지는 HTTP 응답으로 확인하지 못함"
+    },
+    {
+      "stage": 8,
+      "testId": "anonymous_note_create_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/notes",
+      "expected": "로그인 없는 메모 생성은 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::c54kz-1792296909353-4555369c431f",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:08.874Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 8,
+      "testId": "anonymous_note_delete_denied",
+      "kind": "forbidden",
+      "method": "DELETE",
+      "path": "/api/notes/:id",
+      "expected": "로그인 없는 메모 삭제는 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::c54kz-1792296909741-51cd495b4dff",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:09.263Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 8,
+      "testId": "cross_origin_note_create_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/notes",
+      "expected": "다른 출처의 메모 생성은 403 INVALID_ORIGIN으로 거부",
+      "expectedStatus": [
+        403
+      ],
+      "status": "pass",
+      "httpStatus": 403,
+      "errorCode": "INVALID_ORIGIN",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::c54kz-1792296910130-5044bddac01e",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:09.647Z",
+      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 8,
+      "testId": "notes_patch_method_denied",
+      "kind": "forbidden",
+      "method": "PATCH",
+      "path": "/api/notes",
+      "expected": "허용되지 않은 PATCH는 405 METHOD_NOT_ALLOWED로 거부",
+      "expectedStatus": [
+        405
+      ],
+      "status": "pass",
+      "httpStatus": 405,
+      "errorCode": "METHOD_NOT_ALLOWED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::mm4sp-1792296910512-7a3745e1cf99",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:10.033Z",
+      "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 8,
+      "testId": "unknown_api_route_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes-admin",
+      "expected": "없는 API 경로는 404로 거부",
+      "expectedStatus": [
+        404
+      ],
+      "status": "pass",
+      "httpStatus": 404,
+      "errorCode": null,
+      "headers": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "text/plain; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::lxg98-1792296910887-d46ce1fd0cb6",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:10.408Z",
+      "observed": "HTTP 404 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 8,
+      "testId": "own_note_write_allowed",
+      "kind": "normal",
+      "method": "POST",
+      "path": "/api/notes",
+      "expected": "승인된 기기 세션의 본인 메모 생성은 201로 허용",
+      "expectedStatus": [
+        201
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "메모를 만드는 요청이라 자동으로 보내지 않음"
+    },
+    {
+      "stage": 9,
+      "testId": "normal_read_observe_classified",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "정상 조회량은 observe로 분류",
+      "expectedStatus": null,
+      "status": "unverified",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "로컬 가상 시험(npm run detect:test)은 따로 있으나 이번 실행에서 실행하지 않았고, 운영 엔진의 실제 판정은 HTTP 응답으로 확인하지 못함"
+    },
+    {
+      "stage": 9,
+      "testId": "burst_read_revocation_proposed",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "10분 이내 121건 이상의 폭주 조회는 propose_revocation으로 분류",
+      "expectedStatus": null,
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "대량 요청이라 자동으로 보내지 않음"
+    },
+    {
+      "stage": 10,
+      "testId": "restore_get_method_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes/:id/restore",
+      "expected": "GET 복구 요청은 405 METHOD_NOT_ALLOWED로 거부",
+      "expectedStatus": [
+        405
+      ],
+      "status": "pass",
+      "httpStatus": 405,
+      "errorCode": "METHOD_NOT_ALLOWED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::lxg98-1792296911067-04ccf6db9deb",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:10.588Z",
+      "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 10,
+      "testId": "anonymous_restore_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/notes/:id/restore",
+      "expected": "로그인 없는 복구 요청은 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::fpd74-1792296912076-fa1a3009d084",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:11.594Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 10,
+      "testId": "cross_origin_restore_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/notes/:id/restore",
+      "expected": "다른 출처의 복구 요청은 403 INVALID_ORIGIN으로 거부",
+      "expectedStatus": [
+        403
+      ],
+      "status": "pass",
+      "httpStatus": 403,
+      "errorCode": "INVALID_ORIGIN",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::lxg98-1792296912465-737590938a52",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:11.986Z",
+      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 10,
+      "testId": "cross_user_restore_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/notes/:id/restore",
+      "expected": "다른 사용자의 메모 복구는 거부됨",
+      "expectedStatus": null,
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "두 번째 시험 계정과 스냅샷이 필요하고 메모를 바꿀 수 있는 요청이라 자동으로 보내지 않음"
+    },
+    {
+      "stage": 10,
+      "testId": "own_note_restore_allowed",
+      "kind": "normal",
+      "method": "POST",
+      "path": "/api/notes/:id/restore",
+      "expected": "본인 메모 복구는 지정한 스냅샷·해시가 맞을 때 200으로 허용",
+      "expectedStatus": [
+        200
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "스냅샷 ID·내용 해시·유효한 세션이 필요하고 메모를 바꾸는 요청이라 자동으로 보내지 않음"
+    },
+    {
+      "stage": 11,
+      "testId": "device_status_anonymous_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/device/status",
+      "expected": "로그인 없는 기기 상태 조회는 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::xxnrz-1792296912860-4c1a89fd5ffa",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:12.381Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 11,
+      "testId": "device_status_cross_origin_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/device/status",
+      "expected": "다른 출처의 기기 상태 조회는 403 INVALID_ORIGIN으로 거부",
+      "expectedStatus": [
+        403
+      ],
+      "status": "pass",
+      "httpStatus": 403,
+      "errorCode": "INVALID_ORIGIN",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::92dff-1792296914038-833cbecddab9",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:13.558Z",
+      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 11,
+      "testId": "device_status_get_method_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/device/status",
+      "expected": "GET 기기 상태 조회는 405 METHOD_NOT_ALLOWED로 거부하고 Allow: POST를 알림",
+      "expectedStatus": [
+        405
+      ],
+      "status": "pass",
+      "httpStatus": 405,
+      "errorCode": "METHOD_NOT_ALLOWED",
+      "headers": {
+        "allow": "POST",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::92dff-1792296914410-9b59880c0167",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:13.931Z",
+      "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff · allow: POST",
+      "reason": null
+    },
+    {
+      "stage": 11,
+      "testId": "device_register_options_anonymous_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/device/register-options",
+      "expected": "로그인 없는 기기 등록 옵션 요청은 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::scqbd-1792296914785-98daee44bfc8",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:14.306Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 11,
+      "testId": "device_auth_verify_anonymous_denied",
+      "kind": "forbidden",
+      "method": "POST",
+      "path": "/api/device/auth-verify",
+      "expected": "로그인 없는 기기 인증 확인은 401 UNAUTHORIZED로 거부",
+      "expectedStatus": [
+        401
+      ],
+      "status": "pass",
+      "httpStatus": 401,
+      "errorCode": "UNAUTHORIZED",
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "requestId": "icn1::iad1::7mrdc-1792296916018-8385cf79d434",
+      "requestIdSource": "x-vercel-id",
+      "checkedAt": "2026-10-18T04:15:15.539Z",
+      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
+      "reason": null
+    },
+    {
+      "stage": 11,
+      "testId": "device_status_session_valid",
+      "kind": "normal",
+      "method": "POST",
+      "path": "/api/device/status",
+      "expected": "승인된 기기 세션으로 기기 상태를 조회하면 200 session_valid",
+      "expectedStatus": [
+        200
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "유효한 로그인·기기 세션을 확보하지 못함: 시험용 세션 값(ATTACK_CHECK_LOGIN_TOKEN, ATTACK_CHECK_DEVICE_TOKEN)이 없어 보내지 않음"
+    },
+    {
+      "stage": 11,
+      "testId": "notes_login_without_device_session_denied",
+      "kind": "forbidden",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "로그인만 있고 기기 세션이 없으면 403 DEVICE_APPROVAL_REQUIRED로 거부",
+      "expectedStatus": [
+        403
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "유효한 로그인·기기 세션을 확보하지 못함: 시험용 세션 값(ATTACK_CHECK_LOGIN_TOKEN, ATTACK_CHECK_DEVICE_TOKEN)이 없어 보내지 않음"
+    },
+    {
+      "stage": 11,
+      "testId": "notes_list_with_device_session",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "승인된 기기 세션의 본인 메모 목록 조회는 200으로 허용",
+      "expectedStatus": [
+        200
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "유효한 로그인·기기 세션을 확보하지 못함: 시험용 세션 값(ATTACK_CHECK_LOGIN_TOKEN, ATTACK_CHECK_DEVICE_TOKEN)이 없어 보내지 않음"
+    },
+    {
+      "stage": 11,
+      "testId": "own_note_read_with_device_session",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/api/notes/:id",
+      "expected": "승인된 기기 세션의 본인 메모 단건 조회는 200으로 허용",
+      "expectedStatus": [
+        200
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "유효한 로그인·기기 세션을 확보하지 못함: 시험용 세션 값(ATTACK_CHECK_LOGIN_TOKEN, ATTACK_CHECK_DEVICE_TOKEN)이 없어 보내지 않음"
+    }
+  ]
+}

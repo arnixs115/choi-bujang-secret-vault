@@ -782,7 +782,7 @@ npm run detect:test
 
 이 절은 **검사한 커밋**의 코드를 기준으로 학생 판정기, 탐지 규칙, 접속 앱, 자료실을 어떻게 설치하고 실행하고 멈추고 되돌리는지 적습니다. 적은 내용은 저장소의 코드와 스크립트에서 읽은 것이고, 실제 배포와 실제 Supabase에서 모두 시험한 것은 아닙니다. 시험하지 않은 부분은 각 항목에 그렇게 적었습니다.
 
-- 검사한 커밋: `____________` (이 절을 쓰기 전에 `git rev-parse HEAD`로 확인한 값을 학생이 적습니다. 커밋 SHA는 자기 자신을 가리킬 수 없으므로 README를 고치기 **직전** 커밋입니다.)
+- 검사한 커밋: `70337ed85c4e216c46564f33cb88a6262e478c1c` (`main`, 2026-10-18 13:07 KST). 이 안내와 작전실 변경을 고치기 **직전** 커밋입니다. 커밋은 자기 SHA를 적을 수 없으므로, 이 변경을 담은 커밋은 위 커밋의 다음 커밋입니다. 시험 기록표(`src/attack-check.mjs`)는 이 커밋에 이미 들어 있습니다.
 - 이 절에는 비밀번호, 토큰, 서버 전용 키, 기기 개인키, 실제 메모 본문을 적지 않습니다. 환경변수는 **이름과 용도**만 적습니다.
 
 #### 1. 누가 만들었나: 제공 엔진과 학생 몫
@@ -791,7 +791,7 @@ npm run detect:test
 |---|---|---|
 | **ALEPH SDP 엔진** (운영 측 제공) | 반 엔진: 요청의 신원·기기·경로를 확인해 `aleph.decision.v1` 요청으로 학생 판정기에 전달, 판정 결과 집행, 사건 검증과 접속 회수 집행, 심판 접수 서버(`aleph.config.json`의 `judgeIssuer`) | **코드가 없습니다.** 계약 설명만 `docs/DECIDER_REQUEST.md`, `docs/DETECT_EVENTS.md`에 있습니다. 엔진의 소스는 `student-kit/sdp-core/decision-contract.mjs`라고 문서에 적혀 있으나 이 저장소에는 없습니다. |
 | **시작 틀 제공** (`ChoiTimo/aleph-defense-starter`) | 빌드 스크립트(`scripts/build-public.mjs`), XDR 연습 경보(`xdr/fixtures/`)와 실행기(`scripts/xdr-run.mjs`), 안내 양식(`package/`), 계약 문서(`docs/`) | 파일별 정확한 출처는 `git log -- <파일>`로 확인합니다. |
-| **학생이 만든 것** | 학생 판정기 `src/decider.mjs`, 탐지 규칙 `src/detect.mjs`, 서버 함수 `api/`(`auth`, `notes`, `device`), 로그인·기기 검증 `src/verify-*.mjs`, `src/device-*.mjs`, 화면 `public/index.html`, XDR 판정 `xdr/brute-force/`, 정책 비교·복구 `scripts/compare-policy-backup.mjs`, `scripts/restore-policy-backup.mjs`, 자기 점검 `src/attack-check.mjs`, `src/attack-record.mjs`, 제출 묶음 `scripts/bundle.mjs`(시작 틀에서 고침) | 아래 2절 |
+| **학생이 만든 것** | 학생 판정기 `src/decider.mjs`, 탐지 규칙 `src/detect.mjs`, 서버 함수 `api/`(`auth`, `notes`, `device`), 로그인·기기 검증 `src/verify-*.mjs`, `src/device-*.mjs`, 화면 `public/index.html`, XDR 판정 `xdr/brute-force/`, 정책 비교·복구 `scripts/compare-policy-backup.mjs`, `scripts/restore-policy-backup.mjs`, 자기 점검 `src/attack-check.mjs`, `src/attack-record.mjs`, 작전실 `public/operations-room.js`와 결과 파일 생성 `scripts/write-attack-results.mjs`, 제출 묶음 `scripts/bundle.mjs`(시작 틀에서 고침) | 아래 2절 |
 | **외부 서비스** | Vercel(배포·서버 함수), Supabase(로그인·자료실 DB) | 학생 계정의 프로젝트이며 설정은 각 서비스 화면에서 합니다. |
 
 학생 판정기와 탐지 규칙이 운영 엔진에 실제로 연결되어 호출되는지는 이 저장소만으로 확인할 수 없습니다. `npm run decider:test`, `npm run fixture:7`, `npm run detect:test`는 가상 요청·가상 사건 연습이며 엔진의 결과나 심판 판정이 아닙니다.
@@ -818,6 +818,7 @@ npm run detect:test
 | `POST /api/notes/:id/restore` | 지정한 스냅샷으로 메모 한 건 복구 |
 | `POST /api/device/status` 외 4개 | 기기 등록·인증(WebAuthn)과 상태 조회 |
 | `/api/ai`, `/api/threat-intel` | 시작 틀의 미구현 뼈대(항상 501) |
+| `GET /attack-results.json` | 작전실이 읽는 정적 결과 파일. 점검기가 실제로 요청을 보내 만든 것만 담으며, 파일이 없으면 작전실은 숫자 없이 "실행한 점검 결과가 없습니다"를 표시 |
 
 **자료실** (Supabase): 코드가 읽고 쓰는 테이블은 `learning_notes`, `device_credentials`, `device_sessions`, `device_challenges`이고, 복구는 DB 함수 `restore_learning_note_snapshot`을 부릅니다. **테이블·함수를 만드는 SQL은 이 저장소에 없습니다.** Supabase 화면에서 만든 것이므로, 새 프로젝트에서는 같은 구조를 직접 만들어야 하며 그 절차는 이 저장소만으로 재현되지 않습니다.
 
@@ -865,6 +866,8 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
 
 승인된 기기 세션이 필요한 정상 요청은 `ATTACK_CHECK_LOGIN_TOKEN`, `ATTACK_CHECK_DEVICE_TOKEN`을 **학생이 직접** 환경에 넣었을 때만 보냅니다. 없으면 `not_run`으로 남습니다. 이 값은 기록·출력되지 않습니다.
 
+작전실에 보일 결과 파일은 같은 점검기를 실행해 `public/attack-results.json`으로 저장합니다(아래 5-1절): `npm run attack:results`.
+
 제출 묶음은 `npm run bundle`로 만듭니다. 형식은 `aleph.defense.submission.v3`(시험 기록표 `attackRecords`)이며, 접수 서버가 v3를 받는지는 확인하지 못했습니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
 
 #### 5. 재현 순서와 기대 결과
@@ -879,6 +882,23 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
 | 6 | `GET /api/device/status` | — | 405 `METHOD_NOT_ALLOWED`, `Allow: POST` |
 
 1, 2, 6은 위 실제 점검에서 로그인 없이 확인되는 항목입니다. 3~5는 유효한 로그인·기기 세션이 필요하며 아직 실제 배포에서 확인하지 않았습니다.
+
+#### 5-1. 작전실 결과 만들기와 확인
+
+작전실(`/`의 "작전실" 칸)은 요청을 보내지 않고 `/attack-results.json`만 읽어 보여 줍니다. 숫자는 이 파일에 있는 기록을 그대로 센 값이며, 파일이 없거나 형식이 맞지 않으면 숫자를 하나도 표시하지 않습니다. `미실행`과 `미확인`은 요청을 보내지 않은 시험으로 따로 표시하고 성공으로 세지 않습니다.
+
+1. `npm ci`
+2. `npm run test:attack && npm run test:ops` — 가상 응답으로 점검기와 작전실 코드를 확인합니다. 실제 배포 결과가 아닙니다.
+3. `npm run attack:results` — 실제 배포에 로그인 없는 요청 21건을 보내고 `public/attack-results.json`을 씁니다. 승인된 기기 세션이 필요한 정상 요청은 `ATTACK_CHECK_LOGIN_TOKEN`, `ATTACK_CHECK_DEVICE_TOKEN`을 학생이 직접 환경에 넣었을 때만 보내고, 없으면 `not_run`으로 남습니다.
+4. 콘솔에 나온 통과·실패·미실행·미확인 개수를 확인합니다. `fail`이 있으면 해당 항목의 `reason`부터 봅니다.
+5. `public/attack-results.json`을 커밋하고 push해 Vercel이 다시 배포하게 합니다.
+6. 배포 주소의 `/`를 열어 작전실의 개수가 4에서 본 개수와 같은지 확인합니다.
+
+| | 정상 결과 | 거부되어야 할 결과 |
+|---|---|---|
+| 작전실 | 결과 파일이 있으면 개수·시험별 상태·HTTP 코드·요청 ID·확인 시각이 파일과 같게 보임. 요청 ID가 없던 시험은 `없음`, 보내지 않은 시험은 `—` | 결과 파일이 없거나 형식이 틀리면 숫자 없이 "실행한 점검 결과가 없습니다" 또는 "표시하지 않습니다" 문구만 보임 |
+
+이 절의 6단계(배포된 화면에서 개수 대조)는 아직 실제 배포에서 하지 않았습니다.
 
 #### 6. 중지
 
@@ -908,7 +928,7 @@ node scripts/restore-policy-backup.mjs --apply --confirm   # 실제 적용
 
 #### 8. 지금까지 실제로 확인한 것
 
-학생이 로컬에서 실제 배포 주소로 점검기를 실행한 표(36개 시험) 기준입니다. 표에는 상태·HTTP 코드·요청 ID만 있었고 확인 시각과 커밋은 없었습니다.
+학생이 로컬에서 실제 배포 주소로 점검기를 실행해 보고한 표(36개 시험) 기준입니다. 표에는 상태·HTTP 코드·요청 ID만 있었고 확인 시각과 커밋은 없었습니다. 5-1절의 `public/attack-results.json`을 만들면 이 표의 숫자를 그 파일의 값으로 바꿔 적습니다.
 
 | 상태 | 개수 | 내용 |
 |---|---|---|

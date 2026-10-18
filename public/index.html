@@ -103,6 +103,12 @@
       line-height: 1.6;
     }
 
+    .ops-table-wrap { overflow-x: auto; }
+    .ops-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; color: #c1ccda; }
+    .ops-table th, .ops-table td { padding: 6px 8px; border-bottom: 1px solid #34465a; text-align: left; vertical-align: top; }
+    #ops-summary { margin: 0 0 12px; }
+    #ops-summary li { padding: 8px 12px; font-size: 0.9rem; }
+
     ul {
       list-style: none;
       display: grid;
@@ -155,6 +161,24 @@
       <div class="auth">
         <button id="device-register" type="button" hidden>이 기기 등록 요청</button>
         <button id="device-auth" type="button" hidden>기기 인증</button>
+      </div>
+    </section>
+
+    <section id="operations-room" class="device-panel" aria-labelledby="ops-title">
+      <h2 id="ops-title">작전실</h2>
+      <p id="ops-status" class="device-help" role="status" aria-live="polite">
+        점검 결과 파일을 확인하는 중입니다.
+      </p>
+      <ul id="ops-summary" hidden></ul>
+      <div class="ops-table-wrap">
+        <table id="ops-table" class="ops-table" hidden>
+          <thead>
+            <tr>
+              <th>시험</th><th>요청</th><th>상태</th><th>HTTP</th><th>요청 ID</th><th>확인 시각</th><th>비고</th>
+            </tr>
+          </thead>
+          <tbody id="ops-rows"></tbody>
+        </table>
       </div>
     </section>
 
@@ -266,6 +290,7 @@
   </main>
 
   
+  <script type="module" src="/operations-room.js"></script>
   <script type="module">
     const loginForm = document.querySelector('#login-form');
     const logoutButton = document.querySelector('#logout');
