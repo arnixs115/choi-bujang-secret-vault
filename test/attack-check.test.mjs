@@ -395,10 +395,10 @@ test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지
     // 실제로 요청을 보낸 시험(GET 9건)은 받은 HTTP 상태가 observed에 그대로 적힌다.
     const observed = new Map(bundle.attackAttempts.map(a => [a.attackId, a.observed]));
     const sent = {
-      anonymous_note_read: 'HTTP 200', root_page_nosniff: 'HTTP 200', aleph_json_public: 'HTTP 200',
-      anonymous_notes_list_denied: 'HTTP 401', anonymous_note_by_id_denied: 'HTTP 401',
-      login_get_method_denied: 'HTTP 405', unknown_api_route_denied: 'HTTP 404',
-      restore_get_method_denied: 'HTTP 405', device_status_get_method_denied: 'HTTP 405',
+      anonymous_note_read: '200', root_page_nosniff: '200', aleph_json_public: '200',
+      anonymous_notes_list_denied: '401', anonymous_note_by_id_denied: '401',
+      login_get_method_denied: '405', unknown_api_route_denied: '404',
+      restore_get_method_denied: '405', device_status_get_method_denied: '405',
     };
     for (const [id, status] of Object.entries(sent)) assert.equal(observed.get(id), status, id);
     // 그 밖의 항목은 보내지 않았으므로 not_run이다(쓰기 요청 시험 포함).
@@ -424,7 +424,7 @@ test('attackAttempts 변환은 실제 HTTP 상태만 적고 보내지 않은 시
     unsentRecord({ testId: 'unverified_one', status: 'unverified' }),
   ]);
   assert.deepEqual(attempts.map(a => [a.attackId, a.observed]), [
-    ['sent_pass', 'HTTP 401'], ['sent_fail', 'HTTP 200'], ['no_response', 'not_run'],
+    ['sent_pass', '401'], ['sent_fail', '200'], ['no_response', 'not_run'],
     ['not_run_write', 'not_run'], ['unverified_one', 'not_run'],
   ]);
   assert.ok(attempts.every(a => Object.keys(a).sort().join() === 'attackId,expected,observed'));

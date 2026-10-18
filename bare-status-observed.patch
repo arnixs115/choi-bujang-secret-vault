@@ -1,0 +1,63 @@
+diff --git a/README.md b/README.md
+index 032eeca..0cf5853 100644
+--- a/README.md
++++ b/README.md
+@@ -868,7 +868,7 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
+ 
+ 작전실에 보일 결과 파일은 같은 점검기를 실행해 `public/attack-results.json`으로 저장합니다(아래 5-1절): `npm run attack:results`.
+ 
+-제출 묶음은 `npm run bundle`로 만듭니다. 형식은 채점표가 읽는 `aleph.defense.submission.v2`이며, 점검 결과는 `attackAttempts`(`attackId`·`expected`·`observed`, 최대 20개)로 들어갑니다. `observed`에는 실제로 받은 HTTP 상태(`HTTP 401` 등)만 적고, 요청을 보내지 않은 시험과, 시도했으나 HTTP 응답을 받지 못해 확인된 상태가 없는 시험은 `not_run`입니다(후자는 점검 결과 파일에는 `httpStatus: null`인 실패로 남습니다). 20개를 넘는 시험표는 실제로 보낸 시험을 먼저 넣습니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
++제출 묶음은 `npm run bundle`로 만듭니다. 형식은 채점표가 읽는 `aleph.defense.submission.v2`이며, 점검 결과는 `attackAttempts`(`attackId`·`expected`·`observed`, 최대 20개)로 들어갑니다. `observed`에는 실제로 받은 HTTP 상태 코드 숫자만(`401` 등) 적고, 요청을 보내지 않은 시험과, 시도했으나 HTTP 응답을 받지 못해 확인된 상태가 없는 시험은 `not_run`입니다(후자는 점검 결과 파일에는 `httpStatus: null`인 실패로 남습니다). 20개를 넘는 시험표는 실제로 보낸 시험을 먼저 넣습니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
+ 
+ #### 5. 재현 순서와 기대 결과
+ 
+diff --git a/src/attack-record.mjs b/src/attack-record.mjs
+index fb9f409..ae49fa3 100644
+--- a/src/attack-record.mjs
++++ b/src/attack-record.mjs
+@@ -156,7 +156,7 @@ export function summarizeAttackRecords(records) {
+ 
+ // ---- 채점표 형식(attackAttempts) ----
+ // 제출 묶음 `aleph.defense.submission.v2`의 attackAttempts는 { attackId, expected, observed } 세 필드만 가진다.
+-// 시험 기록표의 기록을 이 모양으로 바꾼다. 실제로 받은 HTTP 상태가 있을 때만 'HTTP <상태>'를 observed에 적고,
++// 시험 기록표의 기록을 이 모양으로 바꾼다. 실제로 받은 HTTP 상태가 있을 때만 상태 코드 숫자만(예: '401')을 observed에 적고,
+ // 그 밖에는 모두 'not_run'으로 둔다: 보내지 않은 시험(not_run·unverified)과, 요청은 시도했으나
+ // HTTP 응답을 받지 못해 확인된 상태가 없는 시험이다. 어떤 값도 만들어 넣지 않는다.
+ // (응답을 받지 못한 시험은 시험 기록표에서는 fail, 점검 결과 파일에서는 httpStatus null로 그대로 남는다.)
+@@ -165,7 +165,7 @@ export const MAX_SUBMISSION_ATTEMPTS = 20;
+ export function toAttackAttempt(record) {
+   let observed = 'not_run';
+   if ((record.status === 'pass' || record.status === 'fail') && Number.isInteger(record.httpStatus)) {
+-    observed = `HTTP ${record.httpStatus}`;
++    observed = String(record.httpStatus);
+   }
+   return { attackId: record.testId, expected: record.expected, observed };
+ }
+diff --git a/test/attack-check.test.mjs b/test/attack-check.test.mjs
+index 5f498fd..97b60cd 100644
+--- a/test/attack-check.test.mjs
++++ b/test/attack-check.test.mjs
+@@ -395,10 +395,10 @@ test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지
+     // 실제로 요청을 보낸 시험(GET 9건)은 받은 HTTP 상태가 observed에 그대로 적힌다.
+     const observed = new Map(bundle.attackAttempts.map(a => [a.attackId, a.observed]));
+     const sent = {
+-      anonymous_note_read: 'HTTP 200', root_page_nosniff: 'HTTP 200', aleph_json_public: 'HTTP 200',
+-      anonymous_notes_list_denied: 'HTTP 401', anonymous_note_by_id_denied: 'HTTP 401',
+-      login_get_method_denied: 'HTTP 405', unknown_api_route_denied: 'HTTP 404',
+-      restore_get_method_denied: 'HTTP 405', device_status_get_method_denied: 'HTTP 405',
++      anonymous_note_read: '200', root_page_nosniff: '200', aleph_json_public: '200',
++      anonymous_notes_list_denied: '401', anonymous_note_by_id_denied: '401',
++      login_get_method_denied: '405', unknown_api_route_denied: '404',
++      restore_get_method_denied: '405', device_status_get_method_denied: '405',
+     };
+     for (const [id, status] of Object.entries(sent)) assert.equal(observed.get(id), status, id);
+     // 그 밖의 항목은 보내지 않았으므로 not_run이다(쓰기 요청 시험 포함).
+@@ -424,7 +424,7 @@ test('attackAttempts 변환은 실제 HTTP 상태만 적고 보내지 않은 시
+     unsentRecord({ testId: 'unverified_one', status: 'unverified' }),
+   ]);
+   assert.deepEqual(attempts.map(a => [a.attackId, a.observed]), [
+-    ['sent_pass', 'HTTP 401'], ['sent_fail', 'HTTP 200'], ['no_response', 'not_run'],
++    ['sent_pass', '401'], ['sent_fail', '200'], ['no_response', 'not_run'],
+     ['not_run_write', 'not_run'], ['unverified_one', 'not_run'],
+   ]);
+   assert.ok(attempts.every(a => Object.keys(a).sort().join() === 'attackId,expected,observed'));
