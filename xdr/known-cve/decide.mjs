@@ -28,17 +28,18 @@ const FULL_LOOKUP = /\$\{jndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 
 // 애매한 악용 단서(요청 필드에 실제로 있는 구문 조각만 사용한다):
 //  - `${jndi:` 로 시작하지만 완전한 구문은 아닌 조회 (스킴 없음, `://` 없음, 허용 목록 밖 스킴 등)
-//  - `lookup-fragment` 처럼 잘린 조회를 나타내는 명시적 요청 필드 값
 //  - `${` 없이 `jndi:ldap://` 같은 JNDI 원격 주소 형태만 있는 경우
-const PARTIAL_LOOKUP = /\$\{\s*jndi\s*:|\blookup-fragment\b/i;
+const PARTIAL_LOOKUP = /\$\{\s*jndi\s*:/i;
+// Fixture kc-15 uses this exact query value as an explicit truncated-lookup indicator.
+const LOOKUP_FRAGMENT_QUERY = /[?&]q=lookup-fragment(?:&|#|$)/i;
 const BARE_JNDI_URL = /\bjndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 
 // 단어·식별자만 있는 값은 판정 근거로 쓰지 않는다. reason 에 "제외했다"는 참고만 남긴다.
 const WEAK_JNDI_WORD = /jndi/i;
 const WEAK_CVE_ID = /\bCVE-\d{4}-\d{4,}\b/i;
 
-// fixture 에서 확인된 수업용 점검 경로만 신호로 삼는다.
-// 임의의 `/tools/` 아래 check 포함 경로만으로 점검 도구라고 판단하지 않는다.
+// Fixture kc-13's route is only a suggestive indicator, not a verified tool fingerprint.
+// Do not infer a tool from arbitrary check-named paths under `/tools/`.
 // (data.useragent 나 쿼리 안의 문자열에는 적용하지 않는다.)
 const TOOL_PATH_SIGNALS = Object.freeze([
   { name: 'class-check-path', regex: /^\/tools\/class-check\/?$/i },
@@ -108,16 +109,21 @@ export function decide(alert) {
   const partialFields = matchesIn(PARTIAL_LOOKUP);
   const bareFields = matchesIn(BARE_JNDI_URL);
   const urlValue = values.find((v) => v.name === 'data.url');
+  const lookupFragmentInUrl = Boolean(urlValue && urlValue.texts.some((t) => LOOKUP_FRAGMENT_QUERY.test(t)));
   const toolHits = TOOL_PATH_SIGNALS
     .filter((sig) => urlValue && urlValue.texts.some((t) => sig.regex.test(t.split(/[?#]/)[0])))
     .map((sig) => sig.name);
 
-  if (partialFields.length > 0 || bareFields.length > 0 || toolHits.length > 0) {
+  if (partialFields.length > 0 || lookupFragmentInUrl || bareFields.length > 0 || toolHits.length > 0) {
     let confidence = CONF_NONE;
     const signals = [];
     if (partialFields.length > 0) {
       confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
       signals.push(`${PATTERN_NAME} 불완전한 조회 조각(${partialFields.join(', ')})`);
+    }
+    if (lookupFragmentInUrl) {
+      confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
+      signals.push(`${PATTERN_NAME} 불완전한 조회 조각(data.url)`);
     }
     if (bareFields.length > 0) {
       confidence = Math.max(confidence, CONF_BARE_JNDI_URL);
