@@ -156,15 +156,16 @@ export function summarizeAttackRecords(records) {
 
 // ---- 채점표 형식(attackAttempts) ----
 // 제출 묶음 `aleph.defense.submission.v2`의 attackAttempts는 { attackId, expected, observed } 세 필드만 가진다.
-// 시험 기록표의 기록을 이 모양으로 바꾼다. 실제로 받은 HTTP 상태만 observed에 적고,
-// 보내지 않은 시험(not_run·unverified)은 observed를 'not_run'으로 둔다.
-// 응답을 받지 못한 요청은 HTTP 상태가 없으므로 'no_response'로 적는다. 어떤 값도 만들어 넣지 않는다.
+// 시험 기록표의 기록을 이 모양으로 바꾼다. 실제로 받은 HTTP 상태가 있을 때만 'HTTP <상태>'를 observed에 적고,
+// 그 밖에는 모두 'not_run'으로 둔다: 보내지 않은 시험(not_run·unverified)과, 요청은 시도했으나
+// HTTP 응답을 받지 못해 확인된 상태가 없는 시험이다. 어떤 값도 만들어 넣지 않는다.
+// (응답을 받지 못한 시험은 시험 기록표에서는 fail, 점검 결과 파일에서는 httpStatus null로 그대로 남는다.)
 export const MAX_SUBMISSION_ATTEMPTS = 20;
 
 export function toAttackAttempt(record) {
   let observed = 'not_run';
-  if (record.status === 'pass' || record.status === 'fail') {
-    observed = Number.isInteger(record.httpStatus) ? `HTTP ${record.httpStatus}` : 'no_response';
+  if ((record.status === 'pass' || record.status === 'fail') && Number.isInteger(record.httpStatus)) {
+    observed = `HTTP ${record.httpStatus}`;
   }
   return { attackId: record.testId, expected: record.expected, observed };
 }

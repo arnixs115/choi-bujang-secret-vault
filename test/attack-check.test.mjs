@@ -408,11 +408,22 @@ test('attackAttempts 변환은 실제 HTTP 상태만 적고 보내지 않은 시
     unsentRecord({ testId: 'unverified_one', status: 'unverified' }),
   ]);
   assert.deepEqual(attempts.map(a => [a.attackId, a.observed]), [
-    ['sent_pass', 'HTTP 401'], ['sent_fail', 'HTTP 200'], ['no_response', 'no_response'],
+    ['sent_pass', 'HTTP 401'], ['sent_fail', 'HTTP 200'], ['no_response', 'not_run'],
     ['not_run_write', 'not_run'], ['unverified_one', 'not_run'],
   ]);
   assert.ok(attempts.every(a => Object.keys(a).sort().join() === 'attackId,expected,observed'));
   assert.doesNotThrow(() => validateAttackAttempts(attempts));
+});
+
+test('HTTP 응답을 받지 못한 시험은 상태를 지어내지 않고 not_run으로 둔다', async () => {
+  const records = await runAttackChecks(config, {
+    fetch: async () => { throw new TypeError('fetch failed'); }, delayMs: 0, env: {},
+  });
+  const attempts = toAttackAttempts(records);
+  const sentIds = records.filter(r => r.status === 'fail').map(r => r.testId);
+  assert.equal(sentIds.length, 9); // 시도한 GET 9건은 모두 응답이 없다
+  for (const attempt of attempts) assert.equal(attempt.observed, 'not_run', attempt.attackId);
+  assert.ok(attempts.every(a => !a.observed.startsWith('HTTP') && a.observed !== 'no_response'));
 });
 
 test('attackAttempts가 20개를 넘으면 실제로 보낸 시험을 먼저 넣고 표 순서를 지킨다', () => {
