@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { summarizeAttackRecords, validateAttackRecords } from '../src/attack-record.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const git = (...args) => execFileSync('git', ['-C', root, ...args], {
@@ -71,26 +72,14 @@ try {
   const checkerUrl = pathToFileURL(join(root, 'src', 'attack-check.mjs'));
   const { runAttackChecks } = await import(checkerUrl.href);
   if (typeof runAttackChecks !== 'function') fail('src/attack-check.mjs가 runAttackChecks를 내보내야 합니다.');
-  const attackAttempts = await runAttackChecks(config);
-  if (!Array.isArray(attackAttempts) || !attackAttempts.length || attackAttempts.length > 20) {
-    fail('직접 실행한 공격 점검 결과 1~20개가 필요합니다.');
-  }
-  for (const attempt of attackAttempts) {
-    if (!attempt || typeof attempt !== 'object' || Array.isArray(attempt)
-        || Object.keys(attempt).sort().join(',') !== 'attackId,expected,observed'
-        || typeof attempt.attackId !== 'string' || !/^[a-z0-9][a-z0-9_.-]{0,79}$/iu.test(attempt.attackId)
-        || typeof attempt.expected !== 'string' || !attempt.expected.trim() || attempt.expected.length > 300
-        || typeof attempt.observed !== 'string' || !attempt.observed.trim() || attempt.observed.length > 300) {
-      fail('공격 점검 결과에는 attackId·expected·observed만 넣어 주세요.');
-    }
-  }
-  if (new Set(attackAttempts.map(item => item.attackId)).size !== attackAttempts.length) {
-    fail('공격 점검 ID가 중복되었습니다.');
-  }
+  const attackRecords = validateAttackRecords(await runAttackChecks(config));
+  const attackSummary = summarizeAttackRecords(attackRecords);
   const bundle = {
-    schema: 'aleph.defense.submission.v2', step: config.step, commit, repoUrl,
+    schema: 'aleph.defense.submission.v3', step: config.step, commit, repoUrl,
     changedFiles, policyRules,
-    attackAttempts, explanation: notes.explanation.trim(), blockedAt: notes.blockedAt ?? null,
+    // 1~11단계 시험 기록표. pass·fail은 실제로 보낸 요청의 결과이고, not_run·unverified는 보내지 않은 시험이다.
+    attackRecords, attackSummary,
+    explanation: notes.explanation.trim(), blockedAt: notes.blockedAt ?? null,
     identityProvider: config.identityProvider ?? null, allowedRoutes: config.allowedRoutes ?? [],
     originalApiUrl: config.originalApiUrl ?? null, restoreRoute: config.restoreRoute ?? null,
   };
@@ -98,7 +87,9 @@ try {
   mkdirSync(join(root, 'artifacts'), { recursive: true });
   const output = join(root, 'artifacts', 'submission.json');
   writeFileSync(output, `${JSON.stringify(bundle, null, 2)}\n`, { encoding: 'utf8', flag: 'w' });
-  process.stdout.write(`제출 묶음 JSON 생성: ${output}\n단계 ${bundle.step} · 커밋 ${commit.slice(0, 12)} · 바뀐 파일 ${changedFiles.length}개 · 규칙 ${policyRules.length}개 · 직접 점검 ${attackAttempts.length}개\n`);
+  process.stdout.write(`제출 묶음 JSON 생성: ${output}\n단계 ${bundle.step} · 커밋 ${commit.slice(0, 12)} · 바뀐 파일 ${changedFiles.length}개 · 규칙 ${policyRules.length}개\n`
+    + `시험 기록 ${attackSummary.total}개 · 실측 ${attackSummary.measured}개(통과 ${attackSummary.pass} · 실패 ${attackSummary.fail}) · 미실행 ${attackSummary.not_run} · 미확인 ${attackSummary.unverified}\n`
+    + '미실행·미확인 항목은 요청을 보내지 않았으므로 성공으로 세지 않았습니다.\n');
 } catch (error) {
   process.stderr.write(`제출 묶음 생성 중 첫 오류: ${error.message}\n`);
   process.exitCode = 1;

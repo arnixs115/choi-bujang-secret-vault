@@ -776,6 +776,149 @@ npm run detect:test
 
 따라서 위의 이전 확인 기록은 유지하되, 복구 후 항목은 실제 실행 결과를 확인한 뒤 체크합니다. 자료와 정책이 복구되었는지, 정상 요청이 허용되는지, 기존에 거부되던 요청이 계속 거부되는지를 각각 검증해야 합니다.
 
+## 11단계
+
+### 설치·실행·중지·복구 안내
+
+이 절은 **검사한 커밋**의 코드를 기준으로 학생 판정기, 탐지 규칙, 접속 앱, 자료실을 어떻게 설치하고 실행하고 멈추고 되돌리는지 적습니다. 적은 내용은 저장소의 코드와 스크립트에서 읽은 것이고, 실제 배포와 실제 Supabase에서 모두 시험한 것은 아닙니다. 시험하지 않은 부분은 각 항목에 그렇게 적었습니다.
+
+- 검사한 커밋: `____________` (이 절을 쓰기 전에 `git rev-parse HEAD`로 확인한 값을 학생이 적습니다. 커밋 SHA는 자기 자신을 가리킬 수 없으므로 README를 고치기 **직전** 커밋입니다.)
+- 이 절에는 비밀번호, 토큰, 서버 전용 키, 기기 개인키, 실제 메모 본문을 적지 않습니다. 환경변수는 **이름과 용도**만 적습니다.
+
+#### 1. 누가 만들었나: 제공 엔진과 학생 몫
+
+| 구분 | 무엇 | 이 저장소에서 |
+|---|---|---|
+| **ALEPH SDP 엔진** (운영 측 제공) | 반 엔진: 요청의 신원·기기·경로를 확인해 `aleph.decision.v1` 요청으로 학생 판정기에 전달, 판정 결과 집행, 사건 검증과 접속 회수 집행, 심판 접수 서버(`aleph.config.json`의 `judgeIssuer`) | **코드가 없습니다.** 계약 설명만 `docs/DECIDER_REQUEST.md`, `docs/DETECT_EVENTS.md`에 있습니다. 엔진의 소스는 `student-kit/sdp-core/decision-contract.mjs`라고 문서에 적혀 있으나 이 저장소에는 없습니다. |
+| **시작 틀 제공** (`ChoiTimo/aleph-defense-starter`) | 빌드 스크립트(`scripts/build-public.mjs`), XDR 연습 경보(`xdr/fixtures/`)와 실행기(`scripts/xdr-run.mjs`), 안내 양식(`package/`), 계약 문서(`docs/`) | 파일별 정확한 출처는 `git log -- <파일>`로 확인합니다. |
+| **학생이 만든 것** | 학생 판정기 `src/decider.mjs`, 탐지 규칙 `src/detect.mjs`, 서버 함수 `api/`(`auth`, `notes`, `device`), 로그인·기기 검증 `src/verify-*.mjs`, `src/device-*.mjs`, 화면 `public/index.html`, XDR 판정 `xdr/brute-force/`, 정책 비교·복구 `scripts/compare-policy-backup.mjs`, `scripts/restore-policy-backup.mjs`, 자기 점검 `src/attack-check.mjs`, `src/attack-record.mjs`, 제출 묶음 `scripts/bundle.mjs`(시작 틀에서 고침) | 아래 2절 |
+| **외부 서비스** | Vercel(배포·서버 함수), Supabase(로그인·자료실 DB) | 학생 계정의 프로젝트이며 설정은 각 서비스 화면에서 합니다. |
+
+학생 판정기와 탐지 규칙이 운영 엔진에 실제로 연결되어 호출되는지는 이 저장소만으로 확인할 수 없습니다. `npm run decider:test`, `npm run fixture:7`, `npm run detect:test`는 가상 요청·가상 사건 연습이며 엔진의 결과나 심판 판정이 아닙니다.
+
+#### 2. 구성 요소
+
+**학생 판정기** (`src/decider.mjs`, `decide(request)`): 엔진이 확인한 요청을 받아 `allow`, `deny`, `step_up` 중 하나를 응답 다섯 항목으로 돌려줍니다. 규칙 이름(`RULE_IDS`)은 네 개입니다.
+
+| 규칙 | 동작 |
+|---|---|
+| `starter.deny` | 요청·신호·최근 사건의 형식이 계약과 다르면 `deny`(`starter_not_ready`) |
+| `device_registered` | `deviceRegistered`가 `true`가 아니면 `deny`(`device_not_registered`) |
+| `resource_zone_policy` | 메모는 `GET /notes/:id`, `POST /notes/:id/restore`만, 공지는 읽기만 허용. 목록·강사 자료·알 수 없는 서비스는 `deny` |
+| `step_up_required` | 비정상 시간(6시 전·22시 이후), 비정상 네트워크, 최근 5분 안 위험 신호 10건 이상이 모두 겹치면 `step_up`. 5분 안에 재인증했고 `GET`이면 `allow` |
+
+**탐지 규칙** (`src/detect.mjs`, `detect(events)`): 같은 `identity.sub`의 `GET` 사건이 어느 10분 구간에서든 120건을 넘으면 `propose_revocation`(`burst_read`)을, 아니면 `observe`를 돌려줍니다. 이것은 **회수 제안**이며 접속을 실제로 끊는 일은 엔진이 합니다. XDR 보너스 `xdr/brute-force/decide.mjs`는 가상 경보를 `block`·`alert`·`record`로 나누고, `respond.mjs`는 차단 규칙 **제안**만 만듭니다. 제안이 실제 차단은 아닙니다.
+
+**접속 앱** (Vercel): `public/`의 정적 화면과 `api/`의 서버 함수입니다.
+
+| 경로 | 역할 |
+|---|---|
+| `POST /api/auth/login`, `POST /api/auth/logout` | 서버를 거치는 로그인과 로그아웃(로그인 쿠키·기기 세션 쿠키 삭제, 기기 세션 회수) |
+| `GET·POST /api/notes`, `GET·PUT·DELETE /api/notes/:id` | 내 메모. 로그인과 승인된 기기 세션이 모두 필요 |
+| `POST /api/notes/:id/restore` | 지정한 스냅샷으로 메모 한 건 복구 |
+| `POST /api/device/status` 외 4개 | 기기 등록·인증(WebAuthn)과 상태 조회 |
+| `/api/ai`, `/api/threat-intel` | 시작 틀의 미구현 뼈대(항상 501) |
+
+**자료실** (Supabase): 코드가 읽고 쓰는 테이블은 `learning_notes`, `device_credentials`, `device_sessions`, `device_challenges`이고, 복구는 DB 함수 `restore_learning_note_snapshot`을 부릅니다. **테이블·함수를 만드는 SQL은 이 저장소에 없습니다.** Supabase 화면에서 만든 것이므로, 새 프로젝트에서는 같은 구조를 직접 만들어야 하며 그 절차는 이 저장소만으로 재현되지 않습니다.
+
+#### 3. 설치
+
+준비물: Node.js 22 이상, GitHub 계정, Vercel 계정, Supabase 프로젝트.
+
+1. 저장소를 받고 검사한 커밋으로 맞춥니다: `git clone <저장소 주소>` 후 `git checkout <검사한 커밋>`.
+2. `npm ci`로 의존성을 설치합니다.
+3. Vercel에서 이 저장소로 새 프로젝트를 만듭니다. 빌드 명령은 `vercel.json`의 `npm run build`입니다. 이 빌드는 Vercel이 주는 저장소·커밋·배포 주소가 없으면 일부러 실패합니다.
+4. Vercel의 **환경변수 비밀 입력란**에 아래 이름으로 값을 넣습니다. 값은 이 문서, Git, 로그, 캡처에 남기지 않습니다.
+
+| 이름 | 용도 | 값을 받는 곳 |
+|---|---|---|
+| `SUPABASE_URL` | Supabase 프로젝트 주소 | Supabase 프로젝트 설정 |
+| `SUPABASE_PUBLISHABLE_KEY` | 로그인 API가 쓰는 공개용 키 | Supabase API 키 화면 |
+| `SUPABASE_SECRET_KEY` | 서버 함수 전용 키. 브라우저·응답·Git에 넣지 않음 | Supabase API 키 화면 |
+
+`SUPABASE_SECRET_KEY`가 없으면 메모·기기 API가 정상 동작하지 않습니다(로그인 검증기를 만들지 못함).
+5. `aleph.config.json`을 배포와 대조합니다: `publicAppUrl`, `repoUrl`, `identityProvider`, `allowedRoutes`, `originalApiUrl`. **`judgeIssuer`는 운영 측이 채운 값이므로 바꾸지 않습니다.**
+6. 기기 승인: 화면에서 `이 기기 등록 요청`을 누르면 자격 증명이 `pending`으로 저장됩니다. 관리자가 Supabase에서 `device_credentials`의 `status`를 `approved`로 바꾸고 `approved_by`, `approved_at`을 채워야 합니다. 셋 중 하나라도 없으면 승인으로 보지 않습니다.
+
+#### 4. 실행과 확인
+
+로컬 시험(실제 배포·실제 DB·엔진은 쓰지 않습니다):
+
+```bash
+npm ci
+npm run test:attack     # 시험 기록표(가상 응답)
+npm run test:r5
+npm run test:package
+npm run test:device     # 가상 인증기·가짜 DB
+npm run test:policy-backup
+npm run test:policy-restore
+npm run decider:test    # 가상 요청 연습
+npm run detect:test     # 가상 사건 연습
+npm run xdr:run -- brute-force
+```
+
+배포한 앱에 대한 실제 점검(세션 값이 없으면 로그인 없는 요청 21건을 보냅니다):
+
+```bash
+node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.runAttackChecks(JSON.parse(require('fs').readFileSync('aleph.config.json')))).map(r=>({id:r.testId,status:r.status,http:r.httpStatus,rid:r.requestId}))))"
+```
+
+승인된 기기 세션이 필요한 정상 요청은 `ATTACK_CHECK_LOGIN_TOKEN`, `ATTACK_CHECK_DEVICE_TOKEN`을 **학생이 직접** 환경에 넣었을 때만 보냅니다. 없으면 `not_run`으로 남습니다. 이 값은 기록·출력되지 않습니다.
+
+제출 묶음은 `npm run bundle`로 만듭니다. 형식은 `aleph.defense.submission.v3`(시험 기록표 `attackRecords`)이며, 접수 서버가 v3를 받는지는 확인하지 못했습니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
+
+#### 5. 재현 순서와 기대 결과
+
+| 순서 | 한 일 | 정상 결과 | 거부되어야 할 결과 |
+|---|---|---|---|
+| 1 | 로그인 없이 `GET /api/notes` | — | 401 `UNAUTHORIZED` |
+| 2 | 다른 출처에서 `POST /api/notes` | — | 403 `INVALID_ORIGIN` |
+| 3 | 로그인만 하고 기기 세션 없이 `GET /api/notes` | — | 403 `DEVICE_APPROVAL_REQUIRED` |
+| 4 | 승인된 기기 인증 후 `GET /api/notes` | 200, 내 메모 목록 | — |
+| 5 | 4의 목록에서 고른 ID로 `GET /api/notes/:id` | 200, 내 메모 | 남의 ID는 404 `NOTE_NOT_FOUND` |
+| 6 | `GET /api/device/status` | — | 405 `METHOD_NOT_ALLOWED`, `Allow: POST` |
+
+1, 2, 6은 위 실제 점검에서 로그인 없이 확인되는 항목입니다. 3~5는 유효한 로그인·기기 세션이 필요하며 아직 실제 배포에서 확인하지 않았습니다.
+
+#### 6. 중지
+
+| 하려는 일 | 방법 | 상태 |
+|---|---|---|
+| 내 세션 끝내기 | 화면의 로그아웃 또는 `POST /api/auth/logout`. 쿠키 두 개를 지우고 기기 세션을 DB에서 회수합니다. | 코드로 확인, 실제 배포 미시험 |
+| 한 기기의 접근 끊기 | Supabase에서 `device_credentials`의 `status`를 `approved`가 아닌 값(예: `revoked`)으로 바꿉니다. 서버가 요청마다 승인 상태를 다시 확인하므로 이미 발급된 세션도 다음 요청부터 거부됩니다. | `test:device`(가짜 DB)로 확인, 실제 DB 미시험 |
+| 이상 접속 회수 | `detect`의 `propose_revocation`은 제안입니다. 실제 회수는 엔진이 집행하며, 연결 여부는 확인하지 못했습니다. | 미확인 |
+| 서비스 전체 멈추기 | 이 저장소에는 중지 스위치가 없습니다. Vercel 프로젝트·배포 설정 화면의 기능을 씁니다. | 미시험 |
+| 키가 노출된 것 같을 때 | Supabase에서 서버 전용 키를 새로 발급하고, 새 값을 Vercel 비밀 입력란에만 넣어 다시 배포합니다. | 미시험 |
+
+#### 7. 복구
+
+**코드·배포**: 잘못된 변경은 `git revert <커밋>`으로 되돌립니다. `git reset --hard`는 쓰지 않습니다. 이전 배포로 돌아가는 일은 Vercel의 배포 목록 기능을 씁니다(미시험).
+
+**메모 한 건**: `POST /api/notes/:id/restore`에 `{ "snapshotId": "<UUID>", "contentSha256": "<64자리 소문자 16진수>" }`를 보냅니다. 같은 출처, 로그인, 승인된 기기 세션이 필요합니다. 성공하면 200과 `id`, `ownerId`, `contentSha256`, `auditId`를 돌려줍니다. 실패는 400 `INVALID_RESTORE_INPUT`, 404 `SNAPSHOT_OR_NOTE_NOT_FOUND`, 409 `SNAPSHOT_HASH_MISMATCH`입니다. 스냅샷을 만드는 방법은 이 저장소에 없고, 실제 복구 호출과 복구 후 검증은 아직 하지 않았습니다(10단계 절 참조).
+
+**정책(`src/decider.mjs`의 구역 정책 함수)**: 
+
+```bash
+npm run policy:compare   # 사본을 읽고 검증·비교
+npm run policy:restore   # 미리보기만 (적용 안 함)
+node scripts/restore-policy-backup.mjs --apply --confirm   # 실제 적용
+```
+
+사본 `policy-backups/verified-policy.json`과 독립적으로 확인한 신뢰 해시가 모두 있어야 합니다. 지금 저장소에는 사본이 없고 신뢰 해시도 `null`이므로 **복구는 중단되는 것이 정상**입니다. 사본을 임의로 만들거나 과거 커밋을 사본으로 간주하지 않습니다.
+
+#### 8. 지금까지 실제로 확인한 것
+
+학생이 로컬에서 실제 배포 주소로 점검기를 실행한 표(36개 시험) 기준입니다. 표에는 상태·HTTP 코드·요청 ID만 있었고 확인 시각과 커밋은 없었습니다.
+
+| 상태 | 개수 | 내용 |
+|---|---|---|
+| `pass` | 20 | 로그인 없는 거부 요청, 다른 출처·잘못된 메서드 거부, 첫 화면의 `nosniff`, `/aleph.json` |
+| `fail` | 1 | `anonymous_note_read`(HTTP 200). 이 시험은 1단계의 공개 가상 메모 표시를 찾는데, 현재 `data.json`의 `notes`는 비어 있습니다. 코드상 예상되는 결과이며 실제 `reason` 값은 표에 없어 확인하지 못했습니다. |
+| `not_run` | 10 | 세션 값이 없어 보내지 않은 4개, 다른 계정·메모 변경·대량 요청이 필요한 6개 |
+| `unverified` | 5 | 6·7·9단계의 엔진·심판 판정은 HTTP로 확인할 수 없음 |
+
+`not_run`과 `unverified`는 요청을 보내지 않았다는 뜻이며 성공으로 세지 않습니다. 이 표는 학생 자신의 점검이고 심판의 판정이 아닙니다.
+
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
 [AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 2단계부터는 자료 보호를 구현할 때 `public/data.json`을 복사하는 1단계 빌드 흐름도 함께 바꿔야 합니다. 3단계 이후의 로그인, 허용 경로, 5단계의 원본 API 주소, 6단계 이후 정책 규칙은 해당 단계 원고와 계약에 맞춰 추가합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
