@@ -213,16 +213,25 @@ const NEVER_IDS = new Set([...ids(15, 17), ...ids(18, 26)]);
 
 test('decide: 실제 요청 인자(SQL·스크립트·../·명령 구분자)와 반복으로 block/alert/record 구분', async () => {
   const { decide } = await import('../xdr/web-injection/decide.mjs');
-  const mk = (url, count, description = '요청이 들어왔습니다.') => ({ id: 'x', rule: { level: 5, description }, data: { srcip: '198.51.100.7', url, ...(count === undefined ? {} : { count: String(count) }) } });
+  // 공격 후보 표시(T1190·위험도 6)가 있는 경보와, 표시 없는 일반 조회를 구분해서 만든다.
+  const mk = (url, count, { flagged = true, description = '요청이 들어왔습니다.' } = {}) => ({
+    id: 'x',
+    rule: { level: flagged ? 6 : 3, description, mitre: flagged ? ['T1190'] : [] },
+    data: { srcip: '198.51.100.7', url, ...(count === undefined ? {} : { count: String(count) }) },
+  });
   const act = (a) => decide(a).action;
   assert.equal(act(mk("/notes?q=1'%20OR%201%3D1--", 12)), 'block');
   assert.equal(act(mk('/s?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E', 5)), 'block');
   assert.equal(act(mk('/files?path=../../../etc/passwd', 8)), 'block');
   assert.equal(act(mk('/x?c=1;cat%20/etc/hosts', 6)), 'block');
   assert.equal(act(mk('/notes?q=1%20UNION%20SELECT%20pw%20FROM%20users', 1)), 'alert'); // 반복 없음
-  assert.equal(act(mk('/notes?q=hello', 20)), 'record'); // 반복만으로는 막지 않음
-  assert.equal(act(mk('/search?q=select-course', 1, '주소에 select 라는 수업명이 한 번 있습니다.')), 'record');
-  assert.equal(act(mk('/api/notes')), 'record');
+  assert.equal(act(mk('/search?q=select-course', 1)), 'alert'); // 표시는 있으나 패턴·반복 없음
+  assert.equal(act(mk('/notes?q=hello', 20, { flagged: false })), 'record'); // 반복만으로는 막지 않음
+  assert.equal(act(mk('/api/notes', undefined, { flagged: false })), 'record');
+  for (const c of [1, 2]) {
+    const d = decide(mk('/notes?q=1%20UNION%20SELECT%20x%20FROM%20t', c));
+    assert.ok(d.confidence >= 0.5 && d.confidence < 0.85, `alert 확신도 범위: ${d.confidence}`);
+  }
   assert.ok(decide(mk("/n?q=' or 1=1", 9)).confidence >= 0.85);
 });
 
