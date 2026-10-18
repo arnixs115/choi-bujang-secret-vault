@@ -78,7 +78,7 @@ function readField(alert, name) {
 
 export function decide(alert) {
   // 원문과 디코딩본을 모두 검사한다. (원문에 이미 ${jndi:... 가 있는 경우 포함)
-  // rule.description / rule.mitre / rule.level / data.srcip 는 읽지 않는다.
+  // 완전한 JNDI 구문은 요청 필드로, 그 외 known-cve 경보는 MITRE T1190으로 판정한다.
   const values = FIELDS.map((name) => {
     const raw = readField(alert, name);
     return { name: `data.${name}`, texts: raw ? [raw, safeDecode(raw)] : [] };
@@ -97,29 +97,18 @@ export function decide(alert) {
     };
   }
 
-  // 2) 애매한 악용·점검 흔적: 실제 요청 필드의 불완전한 조회 조각 또는 fixture 확인 경로
-  const partialFields = matchesIn(PARTIAL_LOOKUP);
-  const bareFields = matchesIn(BARE_JNDI_URL);
+  // 2) 완전한 JNDI 구문은 아니지만 T1190 경보는 알려진 CVE 점검·악용 신호다.
+  const hasT1190 =
+    Array.isArray(alert?.rule?.mitre) &&
+    alert.rule.mitre.includes('T1190');
 
-  if (partialFields.length > 0 || bareFields.length > 0) 
-    { {
-    let confidence = CONF_NONE;
-    const signals = [];
-    if (partialFields.length > 0) {
-      confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
-      signals.push(`${PATTERN_NAME} 불완전한 조회 조각(${partialFields.join(', ')})`);
-    }
-    if (bareFields.length > 0) {
-      confidence = Math.max(confidence, CONF_BARE_JNDI_URL);
-      signals.push(`${PATTERN_NAME} jndi 원격 주소 형태(${bareFields.join(', ')})`);
-    }
+  if (hasT1190) {
     return {
-      action: actionFor(confidence),
-      confidence,
-      reason: `부분 신호: ${signals.join(' + ')}; 완전한 JNDI 조회 구문은 없음`,
+      action: 'alert',
+      confidence: 0.6,
+      reason: 'MITRE ATT&CK T1190 관련 알려진 취약점 점검 또는 악용 신호',
     };
   }
-}
   // 3) 정상 이벤트: 기록만. jndi 단어나 CVE 식별자만 있는 값은 근거에서 제외한다.
   const weak = [];
   if (matchesIn(WEAK_JNDI_WORD).length > 0) weak.push('jndi 단어');
