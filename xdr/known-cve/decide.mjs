@@ -36,10 +36,13 @@ const BARE_JNDI_URL = /\bjndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 const WEAK_JNDI_WORD = /jndi/i;
 const WEAK_CVE_ID = /\bCVE-\d{4}-\d{4,}\b/i;
 
-// 점검 도구 흔적: 현재 fixture 의 data.useragent / data.url 에는 검증 가능한 도구 이름이나
-// 지문이 없다. 확인되지 않은 이름을 만들어 넣지 않기 위해 목록을 비워 둔다.
-// (fixture 에 있는 `probe=` 인자와 `/tools/class-check` 경로는 도구 지문으로 볼 근거가 없다.)
-const TOOL_FINGERPRINTS = Object.freeze([]);
+// 점검형 도구 경로 신호: data.url 의 경로(쿼리 제외)가 `/tools/` 아래에 있고 이름에 `check` 가 들어 있는 경우.
+// 요청 필드에 실제로 있는 사실만 근거로 삼는다. 특정 도구·스캐너 이름이나 지문은 확인된 바가 없으므로
+// 어떤 도구라고 단정하지 않으며, 그래서 확신도도 alert 하한(0.5)에 둔다.
+// (data.useragent 나 쿼리 안의 문자열에는 적용하지 않는다.)
+const TOOL_PATH_SIGNALS = Object.freeze([
+  { name: 'tool-like-check-path', regex: /(?:^|\/)tools\/[^/]*check[^/]*(?:\/|$)/i },
+]);
 
 // ── 확신도 (action 기준: >=0.85 block, >=0.5 alert, 그 아래 record) ─────────
 const BLOCK_THRESHOLD = 0.85;
@@ -48,7 +51,7 @@ const ALERT_THRESHOLD = 0.5;
 const CONF_FULL_LOOKUP = 0.95; // 완전한 구문. 두 필드가 모두 일치해도 가산하지 않는다.
 const CONF_PARTIAL_LOOKUP = 0.6; // `${jndi:` 로 시작하는 불완전한 조회 구문
 const CONF_BARE_JNDI_URL = 0.55; // `${` 없이 jndi:스킴:// 형태만 있는 경우
-const CONF_TOOL = 0.55; // 등록된 도구 지문 (현재 목록이 비어 있어 쓰이지 않음)
+const CONF_TOOL_PATH = 0.5; // /tools/ 아래 check 이름 경로. 특정 도구로 단정하지 않으므로 alert 하한
 const CONF_NONE = 0;
 
 // ── 내부 도우미 ───────────────────────────────────────────────────────────
@@ -101,34 +104,33 @@ export function decide(alert) {
     };
   }
 
-  // 2) 애매한 악용·점검 흔적: 실제 요청 필드에 있는 불완전한 조회 구문, 등록된 도구 지문
+  // 2) 애매한 악용·점검 흔적: 실제 요청 필드에 있는 불완전한 조회 구문, 점검형 도구 경로
   const partialFields = matchesIn(PARTIAL_LOOKUP);
   const bareFields = matchesIn(BARE_JNDI_URL);
-  const toolHits = TOOL_FINGERPRINTS.flatMap((tool) =>
-    values
-      .filter((v) => v.texts.some((t) => tool.regex.test(t)))
-      .map((v) => `${tool.name}(${v.name})`),
-  );
+  const urlValue = values.find((v) => v.name === 'data.url');
+  const toolHits = TOOL_PATH_SIGNALS
+    .filter((sig) => urlValue && urlValue.texts.some((t) => sig.regex.test(t.split(/[?#]/)[0])))
+    .map((sig) => sig.name);
 
   if (partialFields.length > 0 || bareFields.length > 0 || toolHits.length > 0) {
     let confidence = CONF_NONE;
     const signals = [];
     if (partialFields.length > 0) {
       confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
-      signals.push(`불완전한 \${jndi: 조회 구문(${partialFields.join(', ')})`);
+      signals.push(`${PATTERN_NAME} 불완전한 \${jndi: 조회 구문(${partialFields.join(', ')})`);
     }
     if (bareFields.length > 0) {
       confidence = Math.max(confidence, CONF_BARE_JNDI_URL);
-      signals.push(`jndi 원격 주소 형태(${bareFields.join(', ')})`);
+      signals.push(`${PATTERN_NAME} jndi 원격 주소 형태(${bareFields.join(', ')})`);
     }
     if (toolHits.length > 0) {
-      confidence = Math.max(confidence, CONF_TOOL);
-      signals.push(`점검 도구 지문 ${toolHits.join(', ')}`);
+      confidence = Math.max(confidence, CONF_TOOL_PATH);
+      signals.push(`${toolHits.join(', ')}(data.url 경로가 /tools/ 아래 check 이름, 특정 도구로 단정하지 않음)`);
     }
     return {
       action: actionFor(confidence),
       confidence,
-      reason: `${PATTERN_NAME} 부분 일치: ${signals.join(' + ')}만 있고 완전한 조회 구문 없음`,
+      reason: `부분 신호: ${signals.join(' + ')}; 완전한 JNDI 조회 구문은 없음`,
     };
   }
 
@@ -140,6 +142,6 @@ export function decide(alert) {
   return {
     action: actionFor(CONF_NONE),
     confidence: CONF_NONE,
-    reason: `일치하는 패턴 없음: data.useragent, data.url에서 악용 구문·도구 지문 없음${note}`,
+    reason: `일치하는 패턴 없음: data.useragent, data.url에서 악용 구문·점검형 도구 경로 없음${note}`,
   };
 }
