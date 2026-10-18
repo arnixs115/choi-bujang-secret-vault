@@ -26,18 +26,29 @@ const FIELDS = ['useragent', 'url'];
 // URL 디코딩 후 대소문자 무시: ${jndi: 뒤에 ldap|ldaps|rmi|dns 와 :// 가 이어지는 완전한 구문
 const FULL_LOOKUP = /\$\{jndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 
-// 불완전한 단서: jndi 단어, CVE 식별자
-const JNDI_WORD = /jndi/i;
-const CVE_ID = /\bCVE-\d{4}-\d{4,}\b/i;
+// 애매한 악용 단서(요청 필드에 실제로 있는 구문 조각만 사용한다):
+//  - `${jndi:` 로 시작하지만 완전한 구문은 아닌 조회 (스킴 없음, `://` 없음, 허용 목록 밖 스킴 등)
+//  - `${` 없이 `jndi:ldap://` 같은 JNDI 원격 주소 형태만 있는 경우
+const PARTIAL_LOOKUP = /\$\{\s*jndi\s*:/i;
+const BARE_JNDI_URL = /\bjndi:(?:ldaps|ldap|rmi|dns):\/\//i;
+
+// 단어·식별자만 있는 값은 판정 근거로 쓰지 않는다. reason 에 "제외했다"는 참고만 남긴다.
+const WEAK_JNDI_WORD = /jndi/i;
+const WEAK_CVE_ID = /\bCVE-\d{4}-\d{4,}\b/i;
+
+// 점검 도구 흔적: 현재 fixture 의 data.useragent / data.url 에는 검증 가능한 도구 이름이나
+// 지문이 없다. 확인되지 않은 이름을 만들어 넣지 않기 위해 목록을 비워 둔다.
+// (fixture 에 있는 `probe=` 인자와 `/tools/class-check` 경로는 도구 지문으로 볼 근거가 없다.)
+const TOOL_FINGERPRINTS = Object.freeze([]);
 
 // ── 확신도 (action 기준: >=0.85 block, >=0.5 alert, 그 아래 record) ─────────
 const BLOCK_THRESHOLD = 0.85;
 const ALERT_THRESHOLD = 0.5;
 
 const CONF_FULL_LOOKUP = 0.95; // 완전한 구문. 두 필드가 모두 일치해도 가산하지 않는다.
-const CONF_PARTIAL_JNDI = 0.6; // jndi 단어만 있는 불완전한 단서
-const CONF_PARTIAL_CVE = 0.55; // CVE 식별자만 있는 불완전한 단서
-const CONF_PARTIAL_BOTH = 0.65; // 서로 다른 두 종류의 불완전한 단서가 모두 있는 경우
+const CONF_PARTIAL_LOOKUP = 0.6; // `${jndi:` 로 시작하는 불완전한 조회 구문
+const CONF_BARE_JNDI_URL = 0.55; // `${` 없이 jndi:스킴:// 형태만 있는 경우
+const CONF_TOOL = 0.55; // 등록된 도구 지문 (현재 목록이 비어 있어 쓰이지 않음)
 const CONF_NONE = 0;
 
 // ── 내부 도우미 ───────────────────────────────────────────────────────────
@@ -71,6 +82,7 @@ function readField(alert, name) {
 
 export function decide(alert) {
   // 원문과 디코딩본을 모두 검사한다. (원문에 이미 ${jndi:... 가 있는 경우 포함)
+  // rule.description / rule.mitre / rule.level / data.srcip 는 읽지 않는다.
   const values = FIELDS.map((name) => {
     const raw = readField(alert, name);
     return { name: `data.${name}`, texts: raw ? [raw, safeDecode(raw)] : [] };
@@ -79,6 +91,7 @@ export function decide(alert) {
   const matchesIn = (regex) =>
     values.filter((v) => v.texts.some((t) => regex.test(t))).map((v) => v.name);
 
+  // 1) 명확한 공격: 완전한 JNDI 원격 조회 구문
   const fullFields = matchesIn(FULL_LOOKUP);
   if (fullFields.length > 0) {
     return {
@@ -88,26 +101,45 @@ export function decide(alert) {
     };
   }
 
-  const jndiFields = matchesIn(JNDI_WORD);
-  const cveFields = matchesIn(CVE_ID);
-  if (jndiFields.length > 0 || cveFields.length > 0) {
-    let confidence = CONF_PARTIAL_JNDI;
-    if (jndiFields.length > 0 && cveFields.length > 0) confidence = CONF_PARTIAL_BOTH;
-    else if (cveFields.length > 0) confidence = CONF_PARTIAL_CVE;
-    const clues = [
-      jndiFields.length > 0 ? `jndi 단어(${jndiFields.join(', ')})` : null,
-      cveFields.length > 0 ? `CVE 식별자(${cveFields.join(', ')})` : null,
-    ].filter(Boolean);
+  // 2) 애매한 악용·점검 흔적: 실제 요청 필드에 있는 불완전한 조회 구문, 등록된 도구 지문
+  const partialFields = matchesIn(PARTIAL_LOOKUP);
+  const bareFields = matchesIn(BARE_JNDI_URL);
+  const toolHits = TOOL_FINGERPRINTS.flatMap((tool) =>
+    values
+      .filter((v) => v.texts.some((t) => tool.regex.test(t)))
+      .map((v) => `${tool.name}(${v.name})`),
+  );
+
+  if (partialFields.length > 0 || bareFields.length > 0 || toolHits.length > 0) {
+    let confidence = CONF_NONE;
+    const signals = [];
+    if (partialFields.length > 0) {
+      confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
+      signals.push(`불완전한 \${jndi: 조회 구문(${partialFields.join(', ')})`);
+    }
+    if (bareFields.length > 0) {
+      confidence = Math.max(confidence, CONF_BARE_JNDI_URL);
+      signals.push(`jndi 원격 주소 형태(${bareFields.join(', ')})`);
+    }
+    if (toolHits.length > 0) {
+      confidence = Math.max(confidence, CONF_TOOL);
+      signals.push(`점검 도구 지문 ${toolHits.join(', ')}`);
+    }
     return {
       action: actionFor(confidence),
       confidence,
-      reason: `${PATTERN_NAME} 부분 단서: ${clues.join(' + ')}만 있고 완전한 조회 구문 없음`,
+      reason: `${PATTERN_NAME} 부분 일치: ${signals.join(' + ')}만 있고 완전한 조회 구문 없음`,
     };
   }
 
+  // 3) 정상 이벤트: 기록만. jndi 단어나 CVE 식별자만 있는 값은 근거에서 제외한다.
+  const weak = [];
+  if (matchesIn(WEAK_JNDI_WORD).length > 0) weak.push('jndi 단어');
+  if (matchesIn(WEAK_CVE_ID).length > 0) weak.push('CVE 식별자');
+  const note = weak.length > 0 ? ` (${weak.join(', ')}만 있어 판정 근거에서 제외)` : '';
   return {
     action: actionFor(CONF_NONE),
     confidence: CONF_NONE,
-    reason: '일치하는 패턴 없음: data.useragent, data.url에서 관련 신호 없음',
+    reason: `일치하는 패턴 없음: data.useragent, data.url에서 악용 구문·도구 지문 없음${note}`,
   };
 }
