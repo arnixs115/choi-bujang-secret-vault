@@ -3,7 +3,7 @@
 // 이 시험이 통과해도 실제 배포나 운영 심판의 결과를 확인한 것이 아니다.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -376,25 +376,22 @@ test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지
     for (const attempt of bundle.attackAttempts) {
       assert.deepEqual(Object.keys(attempt).sort(), ['attackId', 'expected', 'observed']);
     }
-    // 전체 기록표는 별도 근거 파일에 남고, 묶음의 observed는 그 기록과 같다.
-    const evidence = JSON.parse(readFileSync(join(dir, 'artifacts', 'attack-records.json'), 'utf8'));
-    assert.equal(evidence.records.length, 36);
-    const byId = new Map(evidence.records.map(r => [r.testId, r]));
+    // 실제로 요청을 보낸 시험(GET 9건)은 받은 HTTP 상태가 observed에 그대로 적힌다.
+    const observed = new Map(bundle.attackAttempts.map(a => [a.attackId, a.observed]));
+    const sent = {
+      anonymous_note_read: 'HTTP 200', root_page_nosniff: 'HTTP 200', aleph_json_public: 'HTTP 200',
+      anonymous_notes_list_denied: 'HTTP 401', anonymous_note_by_id_denied: 'HTTP 401',
+      login_get_method_denied: 'HTTP 405', unknown_api_route_denied: 'HTTP 404',
+      restore_get_method_denied: 'HTTP 405', device_status_get_method_denied: 'HTTP 405',
+    };
+    for (const [id, status] of Object.entries(sent)) assert.equal(observed.get(id), status, id);
+    // 그 밖의 항목은 보내지 않았으므로 not_run이다(쓰기 요청 시험 포함).
     for (const attempt of bundle.attackAttempts) {
-      const record = byId.get(attempt.attackId);
-      assert.ok(record, attempt.attackId);
-      if (record.status === 'pass' || record.status === 'fail') {
-        assert.equal(attempt.observed, `HTTP ${record.httpStatus}`);
-      } else {
-        assert.equal(attempt.observed, 'not_run');
-      }
+      if (!(attempt.attackId in sent)) assert.equal(attempt.observed, 'not_run', attempt.attackId);
     }
-    // 실제로 요청을 보낸 시험은 모두 묶음에 들어 있고, 쓰기 요청 시험은 not_run이다.
-    const sentIds = evidence.records.filter(r => r.status === 'pass' || r.status === 'fail').map(r => r.testId);
-    for (const id of sentIds) assert.ok(bundle.attackAttempts.some(a => a.attackId === id), id);
-    const write = bundle.attackAttempts.filter(a => a.attackId === 'anonymous_note_create_denied');
-    assert.ok(write.every(a => a.observed === 'not_run'));
-    assert.equal(evidence.summary.measured + evidence.summary.not_run + evidence.summary.unverified, 36);
+    assert.equal(observed.get('anonymous_note_create_denied') ?? 'not_run', 'not_run');
+    // artifacts에는 제출 묶음 하나만 만들어진다. 부가 파일은 쓰지 않는다.
+    assert.deepEqual(readdirSync(join(dir, 'artifacts')), ['submission.json']);
     assert.doesNotMatch(result.stdout + result.stderr, /cookie|SECRET/iu);
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -170,7 +170,7 @@ export function toAttackAttempt(record) {
 }
 
 // 채점표는 한 묶음에 최대 20개를 받는다. 기록이 더 많으면 실제로 요청을 보낸 시험을 모두 먼저 넣고,
-// 남는 자리는 쓰기 요청이라 보내지 않은 시험, 나머지 순으로 표 순서대로 채운다. 전체 기록은 attack-records.json에 남는다.
+// 남는 자리는 쓰기 요청이라 보내지 않은 시험, 나머지 순으로 표 순서대로 채운다.
 export function toAttackAttempts(records, max = MAX_SUBMISSION_ATTEMPTS) {
   const rank = (record) => {
     if (record.status === 'pass' || record.status === 'fail') return 0;

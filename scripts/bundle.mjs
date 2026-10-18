@@ -90,13 +90,8 @@ try {
   mkdirSync(join(root, 'artifacts'), { recursive: true });
   const output = join(root, 'artifacts', 'submission.json');
   writeFileSync(output, `${JSON.stringify(bundle, null, 2)}\n`, { encoding: 'utf8', flag: 'w' });
-  // 전체 시험 기록표(요청 ID·확인 시각·헤더 포함). 제출 묶음이 아니라 근거 보관용이며 커밋하지 않는다.
-  const evidence = { schema: 'aleph.attack-records.v1', commit, summary: attackSummary, records: attackRecords };
-  if (secretPattern.test(JSON.stringify(evidence))) fail('시험 기록표에 비밀값 또는 연락처로 보이는 내용이 있습니다.');
-  const evidenceOutput = join(root, 'artifacts', 'attack-records.json');
-  writeFileSync(evidenceOutput, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: 'utf8', flag: 'w' });
   process.stdout.write(`제출 묶음 JSON 생성: ${output}\n단계 ${bundle.step} · 커밋 ${commit.slice(0, 12)} · 바뀐 파일 ${changedFiles.length}개 · 규칙 ${policyRules.length}개\n`
-    + `제출 묶음 attackAttempts ${attackAttempts.length}개(전체 시험 기록은 ${evidenceOutput})\n`
+    + `제출 묶음 attackAttempts ${attackAttempts.length}개\n`
     + `시험 기록 ${attackSummary.total}개 · 실측 ${attackSummary.measured}개(통과 ${attackSummary.pass} · 실패 ${attackSummary.fail}) · 미실행 ${attackSummary.not_run} · 미확인 ${attackSummary.unverified}\n`
     + '미실행·미확인 항목은 요청을 보내지 않았으므로 성공으로 세지 않았습니다.\n');
 } catch (error) {
