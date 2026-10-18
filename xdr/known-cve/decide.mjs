@@ -29,21 +29,14 @@ const FULL_LOOKUP = /\$\{jndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 // 애매한 악용 단서(요청 필드에 실제로 있는 구문 조각만 사용한다):
 //  - `${jndi:` 로 시작하지만 완전한 구문은 아닌 조회 (스킴 없음, `://` 없음, 허용 목록 밖 스킴 등)
 //  - `${` 없이 `jndi:ldap://` 같은 JNDI 원격 주소 형태만 있는 경우
-const PARTIAL_LOOKUP = /\$\{\s*jndi\s*:/i;
-// Fixture kc-15 uses this exact query value as an explicit truncated-lookup indicator.
-const LOOKUP_FRAGMENT_QUERY = /[?&]q=lookup-fragment(?:&|#|$)/i;
+// 원격 조회 스킴이 있으나 완전한 :// 구문은 아닌 경우만 애매한 악용으로 본다.
+const PARTIAL_LOOKUP =
+  /\$\{\s*jndi\s*:\s*(?:ldaps|ldap|rmi|dns)\b(?!:\/\/)/i;
 const BARE_JNDI_URL = /\bjndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 
 // 단어·식별자만 있는 값은 판정 근거로 쓰지 않는다. reason 에 "제외했다"는 참고만 남긴다.
 const WEAK_JNDI_WORD = /jndi/i;
 const WEAK_CVE_ID = /\bCVE-\d{4}-\d{4,}\b/i;
-
-// Fixture kc-13's route is only a suggestive indicator, not a verified tool fingerprint.
-// Do not infer a tool from arbitrary check-named paths under `/tools/`.
-// (data.useragent 나 쿼리 안의 문자열에는 적용하지 않는다.)
-const TOOL_PATH_SIGNALS = Object.freeze([
-  { name: 'class-check-path', regex: /^\/tools\/class-check\/?$/i },
-]);
 
 // ── 확신도 (action 기준: >=0.85 block, >=0.5 alert, 그 아래 record) ─────────
 const BLOCK_THRESHOLD = 0.85;
@@ -52,7 +45,6 @@ const ALERT_THRESHOLD = 0.5;
 const CONF_FULL_LOOKUP = 0.95; // 완전한 구문. 두 필드가 모두 일치해도 가산하지 않는다.
 const CONF_PARTIAL_LOOKUP = 0.6; // `${jndi:` 로 시작하는 불완전한 조회 구문
 const CONF_BARE_JNDI_URL = 0.55; // `${` 없이 jndi:스킴:// 형태만 있는 경우
-const CONF_TOOL_PATH = 0.5; // fixture 에 명시된 수업용 점검 경로
 const CONF_NONE = 0;
 
 // ── 내부 도우미 ───────────────────────────────────────────────────────────
@@ -108,30 +100,18 @@ export function decide(alert) {
   // 2) 애매한 악용·점검 흔적: 실제 요청 필드의 불완전한 조회 조각 또는 fixture 확인 경로
   const partialFields = matchesIn(PARTIAL_LOOKUP);
   const bareFields = matchesIn(BARE_JNDI_URL);
-  const urlValue = values.find((v) => v.name === 'data.url');
-  const lookupFragmentInUrl = Boolean(urlValue && urlValue.texts.some((t) => LOOKUP_FRAGMENT_QUERY.test(t)));
-  const toolHits = TOOL_PATH_SIGNALS
-    .filter((sig) => urlValue && urlValue.texts.some((t) => sig.regex.test(t.split(/[?#]/)[0])))
-    .map((sig) => sig.name);
 
-  if (partialFields.length > 0 || lookupFragmentInUrl || bareFields.length > 0 || toolHits.length > 0) {
+  if (partialFields.length > 0 || bareFields.length > 0) 
+    { {
     let confidence = CONF_NONE;
     const signals = [];
     if (partialFields.length > 0) {
       confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
       signals.push(`${PATTERN_NAME} 불완전한 조회 조각(${partialFields.join(', ')})`);
     }
-    if (lookupFragmentInUrl) {
-      confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
-      signals.push(`${PATTERN_NAME} 불완전한 조회 조각(data.url)`);
-    }
     if (bareFields.length > 0) {
       confidence = Math.max(confidence, CONF_BARE_JNDI_URL);
       signals.push(`${PATTERN_NAME} jndi 원격 주소 형태(${bareFields.join(', ')})`);
-    }
-    if (toolHits.length > 0) {
-      confidence = Math.max(confidence, CONF_TOOL_PATH);
-      signals.push(`${toolHits.join(', ')}(fixture 에서 확인된 data.url 경로)`);
     }
     return {
       action: actionFor(confidence),
@@ -139,7 +119,7 @@ export function decide(alert) {
       reason: `부분 신호: ${signals.join(' + ')}; 완전한 JNDI 조회 구문은 없음`,
     };
   }
-
+}
   // 3) 정상 이벤트: 기록만. jndi 단어나 CVE 식별자만 있는 값은 근거에서 제외한다.
   const weak = [];
   if (matchesIn(WEAK_JNDI_WORD).length > 0) weak.push('jndi 단어');
