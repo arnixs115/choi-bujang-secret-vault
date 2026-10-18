@@ -868,7 +868,7 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
 
 작전실에 보일 결과 파일은 같은 점검기를 실행해 `public/attack-results.json`으로 저장합니다(아래 5-1절): `npm run attack:results`.
 
-제출 묶음은 `npm run bundle`로 만듭니다. 형식은 채점표가 읽는 `aleph.defense.submission.v2`이며, 점검 결과는 `attackAttempts`(`attackId`·`expected`·`observed`, 최대 20개)로 들어갑니다. `observed`에는 실제로 받은 HTTP 상태 코드 숫자만(`401` 등) 적고, 심판 메모에서 요청 기록이 없다고 지적된 6건(`SENT_BUT_UNCONFIRMED`, 요청은 보냈고 응답은 점검 결과 파일에 그대로 남음)과 요청을 보내지 않은 시험과, 시도했으나 HTTP 응답을 받지 못해 확인된 상태가 없는 시험은 `not_run`입니다(후자는 점검 결과 파일에는 `httpStatus: null`인 실패로 남습니다). 20개를 넘는 시험표는 실제로 보낸 시험을 먼저 넣고, 보낸 시험이 없는 단계(6·7·9단계 등)의 시험과 보내지 않은 정상 시험을 이어서 넣어 1~11단계가 모두 제출 기록에 들어가게 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
+제출 묶음은 `npm run bundle`로 만듭니다. 형식은 채점표가 읽는 `aleph.defense.submission.v2`이며, 점검 결과는 `attackAttempts`(`attackId`·`expected`·`observed`, 최대 20개)로 들어갑니다. `observed`에는 실제로 받은 HTTP 상태 코드 숫자만(`401` 등) 적고, 심판 메모에서 요청 기록이 없다고 지적된 9건(`SENT_BUT_UNCONFIRMED`, 요청은 보냈고 응답은 점검 결과 파일에 그대로 남음)과 요청을 보내지 않은 시험과, 시도했으나 HTTP 응답을 받지 못해 확인된 상태가 없는 시험은 `not_run`입니다(후자는 점검 결과 파일에는 `httpStatus: null`인 실패로 남습니다). 20개를 넘는 시험표는 실제로 보낸 시험을 먼저 넣고, 보낸 시험이 없는 단계(6·7·9단계 등)의 시험과 보내지 않은 정상 시험을 이어서 넣어 1~11단계가 모두 제출 기록에 들어가게 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
 
 #### 5. 재현 순서와 기대 결과
 

@@ -392,17 +392,13 @@ test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지
     for (const attempt of bundle.attackAttempts) {
       assert.deepEqual(Object.keys(attempt).sort(), ['attackId', 'expected', 'observed']);
     }
-    // 실제로 요청을 보낸 시험(GET 9건)은 받은 HTTP 상태가 observed에 그대로 적힌다.
+    // 요청은 보냈지만 심판 요청 기록이 없다고 지적된 시험(GET 9건)은 제출 기록에서 not_run이다.
     const observed = new Map(bundle.attackAttempts.map(a => [a.attackId, a.observed]));
-    // 심판 요청 기록이 없다고 지적된 6건은 요청은 보냈어도 제출 기록에서는 not_run이다.
-    const sent = { unknown_api_route_denied: '404', restore_get_method_denied: '405', device_status_get_method_denied: '405' };
+    assert.equal(SENT_BUT_UNCONFIRMED.length, 9);
     for (const id of SENT_BUT_UNCONFIRMED) assert.equal(observed.get(id), 'not_run', id);
-    assert.ok(result.stdout.includes('심판 요청 기록이 없어 not_run으로 적은 시험 6개'));
-    for (const [id, status] of Object.entries(sent)) assert.equal(observed.get(id), status, id);
+    assert.ok(result.stdout.includes('심판 요청 기록이 없어 not_run으로 적은 시험 9개'));
     // 그 밖의 항목은 보내지 않았으므로 not_run이다(쓰기 요청 시험 포함).
-    for (const attempt of bundle.attackAttempts) {
-      if (!(attempt.attackId in sent)) assert.equal(attempt.observed, 'not_run', attempt.attackId);
-    }
+    for (const attempt of bundle.attackAttempts) assert.equal(attempt.observed, 'not_run', attempt.attackId);
     assert.equal(observed.get('anonymous_note_create_denied') ?? 'not_run', 'not_run');
     // 6·7·9단계를 포함해 1~11단계가 모두 제출 기록에 들어 있고, 정상·금지 시험이 둘 다 있다.
     const checkerSource = readFileSync(join(dir, 'src', 'attack-check.mjs'), 'utf8');

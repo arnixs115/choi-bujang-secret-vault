@@ -168,6 +168,7 @@ export const MAX_SUBMISSION_ATTEMPTS = 20;
 export const SENT_BUT_UNCONFIRMED = Object.freeze([
   'anonymous_note_read', 'root_page_nosniff', 'aleph_json_public',
   'anonymous_notes_list_denied', 'anonymous_note_by_id_denied', 'login_get_method_denied',
+  'unknown_api_route_denied', 'restore_get_method_denied', 'device_status_get_method_denied',
 ]);
 
 export function toAttackAttempt(record) {
