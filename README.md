@@ -1011,6 +1011,102 @@ npm run test:device
 - 테스트는 가상 인증기와 가짜 DB를 사용한 로컬 연습입니다. 실제 기기(지문·PIN)와 브라우저에서의 등록·인증은 별도로 확인해야 합니다.
 - 실제 Supabase DB와 Vercel 배포에서의 동작, 그리고 심판의 최종 판정은 이 테스트로 증명되지 않습니다.
 
+## XDR 보너스: 웹 주입 대응 (web-injection)
+
+웹 요청 경보에서 SQL 주입·스크립트 주입·경로 거슬러 올라가기 형태를 가려내고,
+같은 주소에서 반복된 명확한 공격만 15분짜리 임시 거부 규칙으로 등록한다.
+정상 요청과 애매한 시도는 막지 않는다.
+
+### 구성
+
+| 파일 | 역할 |
+|---|---|
+| `xdr/web-injection/decide.mjs` | 경보 하나를 받아 `{ action, confidence, reason }` 만 돌려준다. 파일 쓰기·판정기 연결은 하지 않는다. |
+| `xdr/web-injection/respond.mjs` | `decide` 결과 중 차단 후보만 거부 규칙으로 등록하고, `xdr/alerts.log` 에 한 줄씩 알림을 쌓는다. |
+| `xdr/web-injection/rule-store.mjs` | 거부 규칙 저장소(`deny-rules.json`, Git 제외). 만료된 규칙은 저장 시 정리한다. |
+| `src/xdr-guard.mjs` | 기존 판정기 앞에서 활성 XDR 규칙과 출발지 IP를 비교하는 연결 계층. `src/decider.mjs` 는 수정하지 않는다. |
+| `scripts/xdr-web-injection-respond.mjs` | 시험 경보를 `decide` → `respond` 로 흘린다. |
+| `scripts/xdr-web-injection-test.mjs` | 가상 요청 시험 17건. |
+
+### 판단 기준 (`decide.mjs`)
+
+- 요청 주소(`data.url`)를 URL 해제(2회)한 뒤 SQL·스크립트 태그·반복 `../`·명령 구분자 형태를 찾는다.
+- 반복 여부는 `data.count`(같은 출발 주소의 누적 횟수) 3 이상으로 본다.
+
+| 조건 | action | 확신도 |
+|---|---|---|
+| 요청 인자 신호 + 반복 | `block` | 0.9~0.95 |
+| 웹 공격 후보(`rule.mitre` 에 T1190 또는 `rule.level` 5 이상)이지만 근거 부족 | `alert` | 0.6~0.7 |
+| 그 밖의 일반 조회 | `record` | 0 |
+
+설명문의 단어만으로 애매한 시도를 정하지 않는다. 반복 횟수만 크고 공격 형태가 없으면 막지 않는다.
+
+### 차단 규칙 (`respond.mjs`)
+
+- 등록 조건: `action === 'block'`, `confidence >= 0.85`, 경보 ID, 유효한 `data.srcip`, `data.url` 의 웹 주입 근거가 모두 있을 때만.
+- 규칙: `{ id: 'xdr-wi-…', effect: 'deny', sourceIp, expiresAt(15분), evidenceAlertId, reason }`
+- 같은 IP의 활성 규칙이 있으면 새로 만들지 않는다(`duplicate`).
+- 결과는 `registered` / `duplicate` / `skipped` / `failed` 로 구분하고, 파일 입출력 오류(`io_error`)와 규칙 등록 실패(`registration_failed`)를 나눠 표시한다.
+- 알림: `xdr/alerts.log` 에 경보당 한 줄 JSONL (`ts, moduleKey, alertId, action, confidence, reason, ruleResult, expiresAt`).
+
+### 판정기 연결 (`src/xdr-guard.mjs`)
+
+- `guardedDecide(request, { sourceIp })` 는 활성 규칙에 걸리면 거부하고, 아니면 기존 `decide(request)` 결과를 그대로 돌려준다.
+- 응답은 판정기 계약(`schema, requestId, decision, reasonCode, ruleIds`)의 5개 항목만 쓴다. 거부 시 `ruleIds: ['xdr-wi-…']`.
+- 근거 경보 ID와 만료 시각은 `guardedDecideDetailed()` 의 `xdr` 필드에 있다.
+- `sourceIp` 는 신뢰할 수 있는 처리 경로에서 얻은 값만 쓴다. 요청·경보 본문의 IP 필드는 쓰지 않는다.
+
+### 실행
+
+```
+npm run xdr:run -- web-injection               # xdr/web-injection/result.json 생성 (block/alert/record 건수)
+node scripts/xdr-web-injection-respond.mjs     # 규칙 등록 + alerts.log 누적
+node scripts/xdr-web-injection-test.mjs        # 가상 요청 시험
+```
+
+### 시험 경보 결과 (로컬 실행)
+
+- `result.json` counts: block 8 / alert 9 / record 9
+- 정상 이벤트(`wi-18~26`)를 막은 경우 없음, 규칙은 명확한 공격 출발지에만 등록, 만료 후에는 모두 통과
+- 가상 요청 시험 17/17 통과. 심판 정답표와의 일치는 재제출로 확인해야 한다.
+
+### 아직 연결되지 않은 부분
+
+- 이 저장소에는 `decide()` 를 부르는 실제 요청 진입점이 없고, 판정 요청 18개 항목에는 출발지 IP도 없다.
+  따라서 `guardedDecide` 는 가상 요청 시험까지만 끝났고, 실제 ZTNA 엔진이 규칙을 읽어 집행하는 실시간 차단은 아니다.
+- 규칙 파일은 로컬 파일이라 서버리스 인스턴스 사이에서 공유되지 않는다.
+- `reasonCode`(`xdr_web_injection_ip_denied`)와 `xdr-wi-…` 규칙 ID가 엔진 등록부에 허용돼 있는지는 확인하지 못했다.
+
+### 웹 주입 판정 결과 재검증
+
+웹 주입 경보를 다시 실행해 판정 결과를 `xdr/web-injection/result.json`에 생성하고, 차단(`block`), 알림(`alert`), 기록(`record`) 건수와 정상 이벤트의 오탐 차단 여부를 확인했습니다.
+
+**실행 명령**
+
+```bash
+npm run xdr:run -- web-injection
+```
+
+**판정 결과**
+
+| 판정 | 건수 |
+|---|---:|
+| 차단 (`block`) | 8 |
+| 알림 (`alert`) | 9 |
+| 기록 (`record`) | 9 |
+| 합계 | 26 |
+
+**검증 내용**
+
+- `result.json`에서 판정별 건수를 확인했습니다.
+- 정상 이벤트 `wi-18~wi-26`이 `block`으로 판정되지 않았음을 확인했습니다.
+- 정상 이벤트를 차단하는 오탐이 없어 불필요한 판정 기준 수정은 진행하지 않았습니다.
+- 기존 `decide.mjs`의 순수 판정 구조를 유지했습니다.
+
+**검증 범위 및 한계**
+
+이번 검증은 저장소의 시험 경보를 이용한 로컬 판정 결과 확인입니다. 별도로 구현한 `guardedDecide`의 가상 요청 시험과 실제 ZTNA 엔진의 실시간 차단은 구분해야 합니다. 실제 요청 진입점과 규칙 저장소의 서버 간 공유는 아직 연결되지 않았으므로, 운영 환경에서 실시간 차단이 적용된 것으로 간주하지 않습니다.
+
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
 [AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 2단계부터는 자료 보호를 구현할 때 `public/data.json`을 복사하는 1단계 빌드 흐름도 함께 바꿔야 합니다. 3단계 이후의 로그인, 허용 경로, 5단계의 원본 API 주소, 6단계 이후 정책 규칙은 해당 단계 원고와 계약에 맞춰 추가합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
