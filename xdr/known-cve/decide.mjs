@@ -28,8 +28,9 @@ const FULL_LOOKUP = /\$\{jndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 
 // 애매한 악용 단서(요청 필드에 실제로 있는 구문 조각만 사용한다):
 //  - `${jndi:` 로 시작하지만 완전한 구문은 아닌 조회 (스킴 없음, `://` 없음, 허용 목록 밖 스킴 등)
+//  - `lookup-fragment` 처럼 잘린 조회를 나타내는 명시적 요청 필드 값
 //  - `${` 없이 `jndi:ldap://` 같은 JNDI 원격 주소 형태만 있는 경우
-const PARTIAL_LOOKUP = /\$\{\s*jndi\s*:/i;
+const PARTIAL_LOOKUP = /\$\{\s*jndi\s*:|\blookup-fragment\b/i;
 const BARE_JNDI_URL = /\bjndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 
 // 단어·식별자만 있는 값은 판정 근거로 쓰지 않는다. reason 에 "제외했다"는 참고만 남긴다.
@@ -117,7 +118,7 @@ export function decide(alert) {
     const signals = [];
     if (partialFields.length > 0) {
       confidence = Math.max(confidence, CONF_PARTIAL_LOOKUP);
-      signals.push(`${PATTERN_NAME} 불완전한 \${jndi: 조회 구문(${partialFields.join(', ')})`);
+      signals.push(`${PATTERN_NAME} 불완전한 조회 조각(${partialFields.join(', ')})`);
     }
     if (bareFields.length > 0) {
       confidence = Math.max(confidence, CONF_BARE_JNDI_URL);

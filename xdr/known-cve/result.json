@@ -88,9 +88,9 @@
     },
     {
       "alertId": "kc-15",
-      "action": "record",
-      "confidence": 0,
-      "reason": "일치하는 패턴 없음: data.useragent, data.url에서 악용 구문·점검형 도구 경로 없음"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "부분 신호: log4j-jndi-lookup 불완전한 조회 조각(data.url); 완전한 JNDI 조회 구문은 없음"
     },
     {
       "alertId": "kc-16",
@@ -149,7 +149,7 @@
   ],
   "counts": {
     "block": 8,
-    "alert": 1,
-    "record": 15
+    "alert": 2,
+    "record": 14
   }
 }
