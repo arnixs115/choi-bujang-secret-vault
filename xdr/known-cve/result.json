@@ -78,7 +78,7 @@
       "alertId": "kc-13",
       "action": "alert",
       "confidence": 0.5,
-      "reason": "부분 신호: tool-like-check-path(data.url 경로가 /tools/ 아래 check 이름, 특정 도구로 단정하지 않음); 완전한 JNDI 조회 구문은 없음"
+      "reason": "부분 신호: class-check-path(fixture 에서 확인된 data.url 경로); 완전한 JNDI 조회 구문은 없음"
     },
     {
       "alertId": "kc-14",

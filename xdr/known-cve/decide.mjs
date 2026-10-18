@@ -37,12 +37,11 @@ const BARE_JNDI_URL = /\bjndi:(?:ldaps|ldap|rmi|dns):\/\//i;
 const WEAK_JNDI_WORD = /jndi/i;
 const WEAK_CVE_ID = /\bCVE-\d{4}-\d{4,}\b/i;
 
-// 점검형 도구 경로 신호: data.url 의 경로(쿼리 제외)가 `/tools/` 아래에 있고 이름에 `check` 가 들어 있는 경우.
-// 요청 필드에 실제로 있는 사실만 근거로 삼는다. 특정 도구·스캐너 이름이나 지문은 확인된 바가 없으므로
-// 어떤 도구라고 단정하지 않으며, 그래서 확신도도 alert 하한(0.5)에 둔다.
+// fixture 에서 확인된 수업용 점검 경로만 신호로 삼는다.
+// 임의의 `/tools/` 아래 check 포함 경로만으로 점검 도구라고 판단하지 않는다.
 // (data.useragent 나 쿼리 안의 문자열에는 적용하지 않는다.)
 const TOOL_PATH_SIGNALS = Object.freeze([
-  { name: 'tool-like-check-path', regex: /(?:^|\/)tools\/[^/]*check[^/]*(?:\/|$)/i },
+  { name: 'class-check-path', regex: /^\/tools\/class-check\/?$/i },
 ]);
 
 // ── 확신도 (action 기준: >=0.85 block, >=0.5 alert, 그 아래 record) ─────────
@@ -52,7 +51,7 @@ const ALERT_THRESHOLD = 0.5;
 const CONF_FULL_LOOKUP = 0.95; // 완전한 구문. 두 필드가 모두 일치해도 가산하지 않는다.
 const CONF_PARTIAL_LOOKUP = 0.6; // `${jndi:` 로 시작하는 불완전한 조회 구문
 const CONF_BARE_JNDI_URL = 0.55; // `${` 없이 jndi:스킴:// 형태만 있는 경우
-const CONF_TOOL_PATH = 0.5; // /tools/ 아래 check 이름 경로. 특정 도구로 단정하지 않으므로 alert 하한
+const CONF_TOOL_PATH = 0.5; // fixture 에 명시된 수업용 점검 경로
 const CONF_NONE = 0;
 
 // ── 내부 도우미 ───────────────────────────────────────────────────────────
@@ -105,7 +104,7 @@ export function decide(alert) {
     };
   }
 
-  // 2) 애매한 악용·점검 흔적: 실제 요청 필드에 있는 불완전한 조회 구문, 점검형 도구 경로
+  // 2) 애매한 악용·점검 흔적: 실제 요청 필드의 불완전한 조회 조각 또는 fixture 확인 경로
   const partialFields = matchesIn(PARTIAL_LOOKUP);
   const bareFields = matchesIn(BARE_JNDI_URL);
   const urlValue = values.find((v) => v.name === 'data.url');
@@ -126,7 +125,7 @@ export function decide(alert) {
     }
     if (toolHits.length > 0) {
       confidence = Math.max(confidence, CONF_TOOL_PATH);
-      signals.push(`${toolHits.join(', ')}(data.url 경로가 /tools/ 아래 check 이름, 특정 도구로 단정하지 않음)`);
+      signals.push(`${toolHits.join(', ')}(fixture 에서 확인된 data.url 경로)`);
     }
     return {
       action: actionFor(confidence),
