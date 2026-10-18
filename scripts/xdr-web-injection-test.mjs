@@ -58,7 +58,7 @@ test('경보 ID·IP·근거가 없거나 잘못되면 등록하지 않음', asyn
     [attack({ url: '/notes?q=hello' }), 'no_attack_evidence'], // 설명문만 있고 URL 근거 없음
     [attack({ url: '/notes?q=doc-sql-chain', description: '자료 목록을 조회했습니다.' }), 'no_attack_evidence'], // 표식만, 설명 없음
     [attack({ url: '/notes?q=doc-sql-chain', count: '2' }), 'no_attack_evidence'], // 반복 부족
-    [attack({ url: '/notes?q=doc-cmd-separator', description: '명령 구분자 표기가 연속 요청 11번에 있습니다.', count: '11' }), 'no_attack_evidence'], // decide.mjs도 record
+    [attack({ url: '/notes?q=doc-cmd-separator', description: '명령 구분자 표기가 연속 요청 11번에 있습니다.', count: '2' }), 'no_attack_evidence'], // 반복 부족
   ];
   for (const [alert, why] of cases) {
     const r = await respond(alert, BLOCK, { now: T0, ...paths() });
@@ -201,15 +201,30 @@ test('IPv4-mapped IPv6 주소도 같은 IP로 취급', async () => {
 test('src/decider.mjs · ZTNA 관련 파일에 미커밋 변경이 없음(git 필요)', async () => {
   let out;
   try {
-    out = execFileSync('git', ['status', '--porcelain', '--untracked-files=no', '--', 'src/decider.mjs', 'xdr/web-injection/decide.mjs', 'scripts/xdr-run.mjs', 'xdr/brute-force'], { encoding: 'utf8' });
+    out = execFileSync('git', ['status', '--porcelain', '--untracked-files=no', '--', 'src/decider.mjs', 'scripts/xdr-run.mjs', 'xdr/brute-force'], { encoding: 'utf8' });
   } catch { return 'skip'; }
   assert.equal(out.trim(), '', `변경됨:\n${out}`);
 });
 
 // ── 실제 fixture + 실제 decide.mjs 시험 (파일이 있을 때만) ─────────────
 const ids = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => `wi-${String(from + i).padStart(2, '0')}`);
-const BLOCK_IDS = new Set([...ids(1, 5), 'wi-07', 'wi-08']);
+const BLOCK_IDS = new Set([...ids(1, 8)]);
 const NEVER_IDS = new Set([...ids(15, 17), ...ids(18, 26)]);
+
+test('decide: 실제 요청 인자(SQL·스크립트·../·명령 구분자)와 반복으로 block/alert/record 구분', async () => {
+  const { decide } = await import('../xdr/web-injection/decide.mjs');
+  const mk = (url, count, description = '요청이 들어왔습니다.') => ({ id: 'x', rule: { level: 5, description }, data: { srcip: '198.51.100.7', url, ...(count === undefined ? {} : { count: String(count) }) } });
+  const act = (a) => decide(a).action;
+  assert.equal(act(mk("/notes?q=1'%20OR%201%3D1--", 12)), 'block');
+  assert.equal(act(mk('/s?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E', 5)), 'block');
+  assert.equal(act(mk('/files?path=../../../etc/passwd', 8)), 'block');
+  assert.equal(act(mk('/x?c=1;cat%20/etc/hosts', 6)), 'block');
+  assert.equal(act(mk('/notes?q=1%20UNION%20SELECT%20pw%20FROM%20users', 1)), 'alert'); // 반복 없음
+  assert.equal(act(mk('/notes?q=hello', 20)), 'record'); // 반복만으로는 막지 않음
+  assert.equal(act(mk('/search?q=select-course', 1, '주소에 select 라는 수업명이 한 번 있습니다.')), 'record');
+  assert.equal(act(mk('/api/notes')), 'record');
+  assert.ok(decide(mk("/n?q=' or 1=1", 9)).confidence >= 0.85);
+});
 
 test('fixture: wi-15~17, wi-18~26은 규칙을 만들지 않고, 등록된 건은 모두 block', async () => {
   const fixtureUrl = new URL('../xdr/fixtures/web-injection.json', import.meta.url);

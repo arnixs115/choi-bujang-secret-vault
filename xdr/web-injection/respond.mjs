@@ -49,6 +49,8 @@ export const EVIDENCE_FAMILIES = [
   {
     family: 'command_injection',
     payload: /(?:;|\|\||\||&&|`|\$\()\s*(?:cat|ls|id|whoami|uname|wget|curl|nc|bash|sh|powershell|cmd)(?=[\s;|&)`]|$)/i,
+    marker: /doc-cmd-separator/i,
+    description: /명령 구분자 표기가/i,
   },
   { family: 'template_or_jndi_injection', payload: /\$\{\s*jndi:|\{\{\s*\d+\s*\*\s*\d+\s*\}\}/i },
   { family: 'xxe', payload: /<!ENTITY\b|<!DOCTYPE[^>]+\[/i },
