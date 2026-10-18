@@ -6,3 +6,4 @@ node_modules/
 public/aleph.json
 .vercel
 .env*
+xdr/web-injection/deny-rules.json

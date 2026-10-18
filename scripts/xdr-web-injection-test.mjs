@@ -14,8 +14,16 @@ const tmp = await mkdtemp(path.join(os.tmpdir(), 'xdr-wi-'));
 let n = 0;
 const paths = () => ({ rulesPath: path.join(tmp, `rules-${++n}.json`), alertsLogPath: path.join(tmp, `alerts-${n}.log`) });
 const T0 = Date.parse('2026-10-18T00:00:00Z');
-const SQLI = "GET /s?q=1' UNION SELECT password FROM users--";
-const attack = (over = {}) => ({ id: 'a-1', src_ip: '198.51.100.7', request: SQLI, ...over });
+// 실제 fixture와 같은 모양: { id, rule:{description,...}, data:{ srcip, url, count(문자열) } }
+const URL_SQLI = "/notes?q=1' UNION SELECT password FROM users--";
+const DESC_SQL = '같은 주소에서 SQL 구문을 이어 붙인 요청이 12번 반복됐습니다.';
+const attack = (over = {}) => {
+  const o = { id: 'a-1', ip: '198.51.100.7', url: URL_SQLI, count: '12', description: DESC_SQL, ...over };
+  const a = { id: o.id, rule: { level: 12, description: o.description, mitre: ['T1190'] }, data: { srcip: o.ip, url: o.url, count: o.count } };
+  if (o.id === undefined) delete a.id;
+  if (o.ip === undefined) delete a.data.srcip;
+  return a;
+};
 const BLOCK = { action: 'block', confidence: 0.95, reason: 'sql injection' };
 
 test('명확한 block은 규칙 등록(만료 15분·근거 경보 번호·deny)', async () => {
@@ -42,11 +50,14 @@ test('확신도 0.85 미만, alert, record는 등록하지 않음', async () => 
 test('경보 ID·IP·근거가 없거나 잘못되면 등록하지 않음', async () => {
   const cases = [
     [attack({ id: undefined }), 'missing_alert_id'],
-    [attack({ src_ip: undefined }), 'missing_source_ip'],
-    [attack({ src_ip: '999.1.1.1' }), 'invalid_source_ip'],
-    [attack({ src_ip: '127.0.0.1' }), 'non_blockable_ip'],
-    [attack({ request: 'GET /index.html' }), 'no_attack_evidence'],
-    [attack({ request: 'SQL injection suspected (설명문만 있음)' }), 'no_attack_evidence'],
+    [attack({ ip: undefined }), 'missing_source_ip'],
+    [attack({ ip: '999.1.1.1' }), 'invalid_source_ip'],
+    [attack({ ip: '127.0.0.1' }), 'non_blockable_ip'],
+    [attack({ url: '/notes' }), 'no_attack_evidence'],
+    [attack({ url: '/notes?q=hello' }), 'no_attack_evidence'], // 설명문만 있고 URL 근거 없음
+    [attack({ url: '/notes?q=doc-sql-chain', description: '자료 목록을 조회했습니다.' }), 'no_attack_evidence'], // 표식만, 설명 없음
+    [attack({ url: '/notes?q=doc-sql-chain', count: '2' }), 'no_attack_evidence'], // 반복 부족
+    [attack({ url: '/notes?q=doc-cmd-separator', description: '명령 구분자 표기가 연속 요청 11번에 있습니다.', count: '11' }), 'no_attack_evidence'], // decide.mjs도 record
   ];
   for (const [alert, why] of cases) {
     const r = await respond(alert, BLOCK, { now: T0, ...paths() });
@@ -57,9 +68,20 @@ test('경보 ID·IP·근거가 없거나 잘못되면 등록하지 않음', asyn
   assert.equal(mismatch.rule.skipReason, 'alert_id_mismatch');
 });
 
-test('URL 인코딩된 페이로드도 근거로 인정', async () => {
-  const r = await respond(attack({ request: 'GET /s?q=1%27%20UNION%20SELECT%20x' }), BLOCK, { now: T0, ...paths() });
-  assert.equal(r.rule.status, 'registered');
+test('URL 인코딩된 페이로드, fixture 표식(표식+설명+반복) 모두 근거로 인정', async () => {
+  const enc = await respond(attack({ url: '/s?q=1%27%20UNION%20SELECT%20x' }), BLOCK, { now: T0, ...paths() });
+  assert.equal(enc.rule.status, 'registered');
+  const marker = await respond(attack({ url: '/notes?q=doc-sql-chain' }), BLOCK, { now: T0, ...paths() });
+  assert.equal(marker.rule.status, 'registered');
+  assert.match(marker.rule.rule.reason, /sql_injection/);
+});
+
+test('경보 본문의 다른 필드에 있는 IP는 출발지로 쓰지 않음(data.srcip만)', async () => {
+  const a = attack({ ip: undefined });
+  a.data.note = '198.51.100.7';
+  a.srcip = '198.51.100.7';
+  const r = await respond(a, BLOCK, { now: T0, ...paths() });
+  assert.equal(r.rule.skipReason, 'missing_source_ip');
 });
 
 test('같은 IP 중복 등록 방지', async () => {
@@ -72,8 +94,8 @@ test('같은 IP 중복 등록 방지', async () => {
 test('알림 로그는 경보당 한 줄 JSONL로 누적(skipped 포함)', async () => {
   const p = paths();
   await respond(attack(), BLOCK, { now: T0, ...p });
-  await respond(attack({ id: 'a-3', src_ip: '198.51.100.8', request: 'GET /' }), { action: 'record', confidence: 0.1 }, { now: T0, ...p });
-  await respond(attack({ id: 'a-4', src_ip: '198.51.100.9' }), BLOCK, { now: T0, ...p });
+  await respond(attack({ id: 'a-3', ip: '198.51.100.8', url: '/' }), { action: 'record', confidence: 0.1 }, { now: T0, ...p });
+  await respond(attack({ id: 'a-4', ip: '198.51.100.9' }), BLOCK, { now: T0, ...p });
   const lines = (await readFile(p.alertsLogPath, 'utf8')).trimEnd().split('\n');
   assert.equal(lines.length, 3);
   const rows = lines.map((l) => JSON.parse(l));
@@ -145,7 +167,7 @@ test('guard: 규칙 파일이 손상돼도 기존 판정기로 넘기고 경고�
 
 test('IPv4-mapped IPv6 주소도 같은 IP로 취급', async () => {
   const p = paths();
-  await respond(attack({ src_ip: '::ffff:198.51.100.7' }), BLOCK, { now: T0, ...p });
+  await respond(attack({ ip: '::ffff:198.51.100.7' }), BLOCK, { now: T0, ...p });
   const r = await guardedDecide({}, { sourceIp: '198.51.100.7', now: T0 + 1000, rulesPath: p.rulesPath, decide: () => ({ decision: 'allow' }) });
   assert.equal(r.decision, 'deny');
 });
@@ -153,7 +175,7 @@ test('IPv4-mapped IPv6 주소도 같은 IP로 취급', async () => {
 test('src/decider.mjs · ZTNA 관련 파일에 미커밋 변경이 없음(git 필요)', async () => {
   let out;
   try {
-    out = execFileSync('git', ['status', '--porcelain', '--', 'src/decider.mjs', 'xdr/web-injection/decide.mjs', 'scripts/xdr-run.mjs', 'xdr/brute-force'], { encoding: 'utf8' });
+    out = execFileSync('git', ['status', '--porcelain', '--untracked-files=no', '--', 'src/decider.mjs', 'xdr/web-injection/decide.mjs', 'scripts/xdr-run.mjs', 'xdr/brute-force'], { encoding: 'utf8' });
   } catch { return 'skip'; }
   assert.equal(out.trim(), '', `변경됨:\n${out}`);
 });
@@ -184,12 +206,62 @@ test('fixture: wi-15~17, wi-18~26은 규칙을 만들지 않고, 등록된 건�
       assert.equal(decision.action, 'block', `${id}`);
       assert.ok(r.rule.rule.expiresAt && r.rule.rule.evidenceAlertId);
     } else if (BLOCK_IDS.has(id)) {
-      notRegistered.push(`${id}(${r.rule.skipReason ?? r.rule.errorKind})`);
+      notRegistered.push(`${id}(${r.rule.skipReason ?? r.rule.errorKind ?? r.rule.status})`);
     }
   }
   const logLines = (await readFile(p.alertsLogPath, 'utf8')).trimEnd().split('\n').length;
   assert.equal(logLines, alerts.length);
   console.log(`    · fixture 등록 ${registered}건 / 로그 ${logLines}줄 / block 대상인데 미등록: ${notRegistered.join(', ') || '없음'}`);
+});
+
+test('종단: fixture를 흘리면 공격 출발지만 거부, wi-15~26 출발지는 통과, 만료 후엔 모두 통과', async () => {
+  const fixtureUrl = new URL('../xdr/fixtures/web-injection.json', import.meta.url);
+  const decideUrl = new URL('../xdr/web-injection/decide.mjs', import.meta.url);
+  if (!existsSync(fixtureUrl) || !existsSync(decideUrl)) return 'skip';
+  const mod = await import(decideUrl);
+  const decide = mod.decide ?? mod.default;
+  const fx = JSON.parse(await readFile(fixtureUrl, 'utf8'));
+  const alerts = Array.isArray(fx) ? fx : (fx.alerts ?? fx.events ?? fx.items);
+  const p = paths();
+
+  // 1) 경보를 흘려 규칙을 만든다.
+  const attackIps = new Set();
+  for (const alert of alerts) {
+    const r = await respond(alert, await decide(alert), { now: T0, ...p });
+    if (r.rule.status === 'registered' || r.rule.status === 'duplicate') attackIps.add(alert.data.srcip);
+  }
+  assert.ok(attackIps.size > 0, '등록된 공격 출발지가 없음(시험이 의미 없음)');
+
+  // 2) 각 경보의 출발지에서 요청을 보내 본다. 판정기는 항상 allow인 시험용 대역.
+  const allow = { decision: 'allow' };
+  const ctx = (now) => ({ now, rulesPath: p.rulesPath, decide: () => allow });
+  const wronglyBlocked = [];
+  let deniedCount = 0;
+  for (const alert of alerts) {
+    const id = extractAlertId(alert);
+    const ip = alert.data?.srcip;
+    const res = await guardedDecide({ path: '/notes' }, { sourceIp: ip, ...ctx(T0 + 60_000) });
+    const denied = res !== allow;
+    if (denied) deniedCount += 1;
+    assert.equal(denied, attackIps.has(ip), `${id}(${ip}): 공격 출발지만 거부되어야 함`);
+    if (denied) {
+      assert.equal(res.decision, 'deny');
+      assert.ok(res.ruleId && res.evidenceAlertId && res.expiresAt, `${id}: 거부 응답에 규칙 ID·근거 경보·만료가 있어야 함`);
+    }
+    if (NEVER_IDS.has(id) && denied) wronglyBlocked.push(id);
+  }
+  assert.deepEqual(wronglyBlocked, [], `정상/애매 경보 출발지가 막힘: ${wronglyBlocked.join(', ')}`);
+
+  // 3) 규칙에 등록되지 않은 임의의 다른 IP는 통과
+  const other = await guardedDecide({ path: '/notes' }, { sourceIp: '192.0.2.250', ...ctx(T0 + 60_000) });
+  assert.equal(other, allow);
+
+  // 4) 만료 시각이 되면 공격 출발지도 XDR 규칙 때문에 막히지 않는다.
+  for (const ip of attackIps) {
+    const after = await guardedDecide({ path: '/notes' }, { sourceIp: ip, ...ctx(T0 + RULE_TTL_MS) });
+    assert.equal(after, allow, `${ip}: 만료 후에도 막힘`);
+  }
+  console.log(`    · 종단: 요청 ${alerts.length}건 중 거부 ${deniedCount}건(공격 출발지 ${attackIps.size}곳), 정상/애매 출발지 오차단 0건, 만료 후 전부 통과`);
 });
 
 let failed = 0;

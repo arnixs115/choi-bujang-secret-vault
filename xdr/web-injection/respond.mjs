@@ -17,25 +17,41 @@ export const RULE_EFFECT = 'deny';
 export const RULE_ID_PREFIX = 'xdr-wi-'; // 기존 src/decider.mjs의 RULE_IDS와 겹치지 않는 접두사
 export const DEFAULT_ALERTS_LOG = path.resolve(here, '..', 'alerts.log');
 
-// ──────────────────────────────────────────────────────────────
-// [확인 필요] 아래 후보 경로는 xdr/fixtures/web-injection.json을 읽지 못한 채 가정한 것입니다.
-// 실제 필드명이 다르면 이 두 배열만 고치면 됩니다.
-export const ALERT_ID_PATHS = ['id', 'alertId', 'alert_id'];
-export const SOURCE_IP_PATHS = [
-  'sourceIp', 'srcIp', 'src_ip', 'source_ip', 'sourceIP', 'clientIp', 'client_ip',
-  'source.ip', 'src.ip', 'network.srcIp', 'network.source_ip',
-];
-// ──────────────────────────────────────────────────────────────
+// 경보 모양 (xdr/fixtures/web-injection.json 확인 결과):
+//   { id, rule:{ description, level, mitre }, data:{ srcip, url, count(문자열) } }
+export const ALERT_ID_PATHS = ['id'];
+export const SOURCE_IP_PATHS = ['data.srcip']; // 경보 안의 다른 문자열에서 IP를 긁어 오지 않는다.
+export const MIN_REPEAT_COUNT = 3;
 
-// 웹 주입 근거 패턴. decide.mjs와 별개로 대응 계층이 직접 확인한다.
-// 근거 문장(설명문)만 있고 실제 페이로드가 없는 경보는 일부러 등록하지 않는다.
-export const EVIDENCE_PATTERNS = [
-  { family: 'sql_injection', re: /\bunion\s+(?:all\s+)?select\b|'\s*or\s*'?\d+'?\s*=\s*'?\d+|\bor\s+1\s*=\s*1\b|;\s*drop\s+table\b|\bsleep\s*\(\s*\d+\s*\)|\bbenchmark\s*\(|\binformation_schema\b|\bxp_cmdshell\b/i },
-  { family: 'xss', re: /<\s*script\b|\bjavascript\s*:|\bon(?:error|load|click|mouseover|focus)\s*=|<\s*svg\b[^>]*\bonload\s*=/i },
-  { family: 'path_traversal', re: /(?:\.\.[\/\\]){2,}|\/etc\/passwd\b|\bwin\.ini\b|\bboot\.ini\b/i },
-  { family: 'command_injection', re: /(?:;|\|\||\||&&|`|\$\()\s*(?:cat|ls|id|whoami|uname|wget|curl|nc|bash|sh|powershell|cmd)(?=[\s;|&)`]|$)/i },
-  { family: 'template_or_jndi_injection', re: /\$\{\s*jndi:|\{\{\s*\d+\s*\*\s*\d+\s*\}\}/i },
-  { family: 'xxe', re: /<!ENTITY\b|<!DOCTYPE[^>]+\[/i },
+// 웹 주입 근거 계열. 근거는 data.url에서만 찾는다(설명문만으로는 등록하지 않음).
+//  (a) payload: URL에 실제 주입 페이로드가 있음
+//  (b) marker : fixture의 표식(doc-*)이 URL에 있고, 같은 계열의 설명문이 있고, data.count >= 3
+// marker/description 값은 decide.mjs의 판정 표식을 복제한 것이므로 decide.mjs가 바뀌면 함께 고쳐야 한다.
+export const EVIDENCE_FAMILIES = [
+  {
+    family: 'sql_injection',
+    payload: /\bunion\s+(?:all\s+)?select\b|'\s*or\s*'?\d+'?\s*=\s*'?\d+|\bor\s+1\s*=\s*1\b|;\s*drop\s+table\b|\bsleep\s*\(\s*\d+\s*\)|\bbenchmark\s*\(|\binformation_schema\b|\bxp_cmdshell\b/i,
+    marker: /doc-sql-(?:chain|or|select-chain)|doc-mixed-marker/i,
+    description: /SQL 구문을 이어 붙인 요청|SQL 구문 표기가 한 주소에서|데이터베이스 조회를 이어 붙이는 표기|SQL 표식/i,
+  },
+  {
+    family: 'script_injection',
+    payload: /<\s*script\b|\bjavascript\s*:|\bon(?:error|load|click|mouseover|focus)\s*=|<\s*svg\b[^>]*\bonload\s*=/i,
+    marker: /doc-script-marker|doc-mixed-marker/i,
+    description: /스크립트 삽입 표기가|스크립트 표식과 SQL 표식/i,
+  },
+  {
+    family: 'path_traversal',
+    payload: /(?:\.\.[\/\\]){2,}|\/etc\/passwd\b|\bwin\.ini\b|\bboot\.ini\b/i,
+    marker: /doc-up-repeat/i,
+    description: /경로를 여러 단계 거슬러 올라가는 표기|경로 이탈 표기가 같은 주소에서/i,
+  },
+  {
+    family: 'command_injection',
+    payload: /(?:;|\|\||\||&&|`|\$\()\s*(?:cat|ls|id|whoami|uname|wget|curl|nc|bash|sh|powershell|cmd)(?=[\s;|&)`]|$)/i,
+  },
+  { family: 'template_or_jndi_injection', payload: /\$\{\s*jndi:|\{\{\s*\d+\s*\*\s*\d+\s*\}\}/i },
+  { family: 'xxe', payload: /<!ENTITY\b|<!DOCTYPE[^>]+\[/i },
 ];
 
 function getPath(obj, dotted) {
@@ -53,24 +69,24 @@ function firstString(obj, paths) {
 export const extractAlertId = (alert) => firstString(alert, ALERT_ID_PATHS);
 export const extractSourceIp = (alert) => firstString(alert, SOURCE_IP_PATHS);
 
-function collectStrings(value, out, depth = 0) {
-  if (out.size > 20000 || depth > 6) return;
-  if (typeof value === 'string') out.text += value + '\n';
-  else if (Array.isArray(value)) value.forEach((v) => collectStrings(v, out, depth + 1));
-  else if (value && typeof value === 'object') Object.values(value).forEach((v) => collectStrings(v, out, depth + 1));
-}
-
 function safeDecode(s) {
   try { return decodeURIComponent(s); } catch { return s; }
 }
 
-/** 경보 안의 모든 문자열(URL 인코딩 2단계 해제 포함)에서 웹 주입 패턴 계열을 찾는다. */
+/** data.url(URL 인코딩 2단계 해제 포함)에서 웹 주입 근거 계열을 찾는다. 설명문만 있으면 근거로 보지 않는다. */
 export function findInjectionEvidence(alert) {
-  const acc = { text: '', get size() { return this.text.length; } };
-  collectStrings(alert, acc);
-  const once = safeDecode(acc.text);
-  const haystack = [acc.text, once, safeDecode(once)].join('\n');
-  return EVIDENCE_PATTERNS.filter(({ re }) => re.test(haystack)).map(({ family }) => family);
+  const url = alert?.data?.url;
+  if (typeof url !== 'string' || !url) return [];
+  const once = safeDecode(url);
+  const haystack = [url, once, safeDecode(once)].join('\n');
+  const description = typeof alert?.rule?.description === 'string' ? alert.rule.description : '';
+  const count = Number(alert?.data?.count);
+  const repeated = Number.isFinite(count) && count >= MIN_REPEAT_COUNT;
+
+  return EVIDENCE_FAMILIES.filter((f) => {
+    if (f.payload?.test(haystack)) return true;
+    return Boolean(f.marker && f.marker.test(haystack) && f.description?.test(description) && repeated);
+  }).map((f) => f.family);
 }
 
 function skip(skipReason, extra = {}) {
