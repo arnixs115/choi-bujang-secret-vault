@@ -1,13 +1,13 @@
 {
   "schema": "aleph.attack-results.v1",
-  "generatedAt": "2026-10-18T04:20:13.238Z",
+  "generatedAt": "2026-10-18T09:53:25.425Z",
   "summary": {
     "total": 36,
-    "pass": 20,
+    "pass": 8,
     "fail": 1,
-    "not_run": 10,
+    "not_run": 22,
     "unverified": 5,
-    "measured": 21
+    "measured": 9
   },
   "records": [
     {
@@ -28,9 +28,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::scqbd-1792297204374-be5855e7272e",
+      "requestId": "icn1::fp689-1792317198260-585b385fc8ec",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:03.766Z",
+      "checkedAt": "2026-10-18T09:53:17.953Z",
       "observed": "비로그인 요청에서 확인 표시가 보이지 않음 (HTTP 200)",
       "reason": "응답에 공개 가상 메모 확인 표시가 없음"
     },
@@ -52,9 +52,9 @@
         "content-type": "text/html; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::scqbd-1792297204976-e1a9487e7620",
+      "requestId": "icn1::mt9f6-1792317198928-05b899b694ab",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:04.498Z",
+      "checkedAt": "2026-10-18T09:53:18.921Z",
       "observed": "HTTP 200 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
       "reason": null
     },
@@ -76,9 +76,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::7mrdc-1792297205373-06874e9608fa",
+      "requestId": "icn1::mt9f6-1792317199541-53d038f3802b",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:04.894Z",
+      "checkedAt": "2026-10-18T09:53:19.533Z",
       "observed": "HTTP 200 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
       "reason": null
     },
@@ -118,9 +118,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::7mrdc-1792297205975-1f4f060a00f4",
+      "requestId": "icn1::iad1::mt9f6-1792317199965-fbdaeff0be02",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:05.496Z",
+      "checkedAt": "2026-10-18T09:53:19.957Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -142,9 +142,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::7mrdc-1792297206376-d8f8d6ab1865",
+      "requestId": "icn1::iad1::cbr7k-1792317201014-94da7b15ce08",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:05.897Z",
+      "checkedAt": "2026-10-18T09:53:21.007Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -178,19 +178,15 @@
       "expectedStatus": [
         403
       ],
-      "status": "pass",
-      "httpStatus": 403,
-      "errorCode": "INVALID_ORIGIN",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::7mrdc-1792297206770-b86c66df4a0f",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:06.289Z",
-      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 5,
@@ -202,19 +198,15 @@
       "expectedStatus": [
         400
       ],
-      "status": "pass",
-      "httpStatus": 400,
-      "errorCode": "INVALID_LOGIN_INPUT",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::7mrdc-1792297207365-f5ae956aa03f",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:06.885Z",
-      "observed": "HTTP 400 · INVALID_LOGIN_INPUT · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 5,
@@ -234,9 +226,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::5lmhv-1792297207753-c3d96aca0578",
+      "requestId": "icn1::iad1::mt9f6-1792317202079-f575326a3985",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:07.274Z",
+      "checkedAt": "2026-10-18T09:53:22.073Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -322,19 +314,15 @@
       "expectedStatus": [
         401
       ],
-      "status": "pass",
-      "httpStatus": 401,
-      "errorCode": "UNAUTHORIZED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::92dff-1792297208359-77e9b46584df",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:07.879Z",
-      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 8,
@@ -346,19 +334,15 @@
       "expectedStatus": [
         401
       ],
-      "status": "pass",
-      "httpStatus": 401,
-      "errorCode": "UNAUTHORIZED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::92dff-1792297208935-0c48bd9ba3dd",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:08.456Z",
-      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "DELETE 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 8,
@@ -370,19 +354,15 @@
       "expectedStatus": [
         403
       ],
-      "status": "pass",
-      "httpStatus": 403,
-      "errorCode": "INVALID_ORIGIN",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::92dff-1792297209329-e59bd47f1320",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:08.849Z",
-      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 8,
@@ -394,19 +374,15 @@
       "expectedStatus": [
         405
       ],
-      "status": "pass",
-      "httpStatus": 405,
-      "errorCode": "METHOD_NOT_ALLOWED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::7mrdc-1792297209710-148514ce02a7",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:09.229Z",
-      "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "PATCH 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 8,
@@ -426,9 +402,9 @@
         "content-type": "text/plain; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::5lmhv-1792297210096-2531e5f17b4a",
+      "requestId": "icn1::xxfw8-1792317202972-9a19c7407c20",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:09.616Z",
+      "checkedAt": "2026-10-18T09:53:22.966Z",
       "observed": "HTTP 404 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
       "reason": null
     },
@@ -506,9 +482,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::92dff-1792297210272-564aa685fa55",
+      "requestId": "icn1::iad1::fp689-1792317203146-7c62a7a5b44d",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:09.786Z",
+      "checkedAt": "2026-10-18T09:53:23.140Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -522,19 +498,15 @@
       "expectedStatus": [
         401
       ],
-      "status": "pass",
-      "httpStatus": 401,
-      "errorCode": "UNAUTHORIZED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::zq9lf-1792297210666-20b11d2a264c",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:10.185Z",
-      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 10,
@@ -546,19 +518,15 @@
       "expectedStatus": [
         403
       ],
-      "status": "pass",
-      "httpStatus": 403,
-      "errorCode": "INVALID_ORIGIN",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::jfdfr-1792297211035-60169ff14bb1",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:10.552Z",
-      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 10,
@@ -608,19 +576,15 @@
       "expectedStatus": [
         401
       ],
-      "status": "pass",
-      "httpStatus": 401,
-      "errorCode": "UNAUTHORIZED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::jfdfr-1792297211438-25ad11c490e7",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:10.943Z",
-      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 11,
@@ -632,19 +596,15 @@
       "expectedStatus": [
         403
       ],
-      "status": "pass",
-      "httpStatus": 403,
-      "errorCode": "INVALID_ORIGIN",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::lxg98-1792297211955-a63b908f42f1",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:11.451Z",
-      "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 11,
@@ -665,9 +625,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::lxg98-1792297212376-7cf2384f1ffc",
+      "requestId": "icn1::iad1::fp689-1792317204353-b982608ba5c7",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:11.865Z",
+      "checkedAt": "2026-10-18T09:53:24.346Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff · allow: POST",
       "reason": null
     },
@@ -681,19 +641,15 @@
       "expectedStatus": [
         401
       ],
-      "status": "pass",
-      "httpStatus": 401,
-      "errorCode": "UNAUTHORIZED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::zq9lf-1792297212843-f659b1720b0a",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:12.343Z",
-      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 11,
@@ -705,19 +661,15 @@
       "expectedStatus": [
         401
       ],
-      "status": "pass",
-      "httpStatus": 401,
-      "errorCode": "UNAUTHORIZED",
-      "headers": {
-        "cache-control": "no-store",
-        "content-type": "application/json; charset=utf-8",
-        "x-content-type-options": "nosniff"
-      },
-      "requestId": "icn1::iad1::d4cc5-1792297213372-fbb9f97f83e3",
-      "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:20:12.889Z",
-      "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
-      "reason": null
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
     },
     {
       "stage": 11,
@@ -726,6 +678,26 @@
       "method": "POST",
       "path": "/api/device/status",
       "expected": "승인된 기기 세션으로 기기 상태를 조회하면 200 session_valid",
+      "expectedStatus": [
+        200
+      ],
+      "status": "not_run",
+      "httpStatus": null,
+      "errorCode": null,
+      "headers": null,
+      "requestId": null,
+      "requestIdSource": null,
+      "checkedAt": null,
+      "observed": null,
+      "reason": "POST 요청은 이 점검기가 보내지 않음(GET·HEAD만 보냄): 쓰기 요청 점검은 미실행"
+    },
+    {
+      "stage": 11,
+      "testId": "notes_list_with_device_session",
+      "kind": "normal",
+      "method": "GET",
+      "path": "/api/notes",
+      "expected": "승인된 기기 세션의 본인 메모 목록 조회는 200으로 허용",
       "expectedStatus": [
         200
       ],
@@ -748,26 +720,6 @@
       "expected": "로그인만 있고 기기 세션이 없으면 403 DEVICE_APPROVAL_REQUIRED로 거부",
       "expectedStatus": [
         403
-      ],
-      "status": "not_run",
-      "httpStatus": null,
-      "errorCode": null,
-      "headers": null,
-      "requestId": null,
-      "requestIdSource": null,
-      "checkedAt": null,
-      "observed": null,
-      "reason": "유효한 로그인·기기 세션을 확보하지 못함: 시험용 세션 값(ATTACK_CHECK_LOGIN_TOKEN, ATTACK_CHECK_DEVICE_TOKEN)이 없어 보내지 않음"
-    },
-    {
-      "stage": 11,
-      "testId": "notes_list_with_device_session",
-      "kind": "normal",
-      "method": "GET",
-      "path": "/api/notes",
-      "expected": "승인된 기기 세션의 본인 메모 목록 조회는 200으로 허용",
-      "expectedStatus": [
-        200
       ],
       "status": "not_run",
       "httpStatus": null,
