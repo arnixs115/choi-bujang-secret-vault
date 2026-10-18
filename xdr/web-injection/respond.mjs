@@ -181,6 +181,7 @@ export async function respond(alert, decision, opts = {}) {
 
   const log = await appendLog({
     ts: new Date(now).toISOString(),
+    moduleKey: 'web-injection', // alerts.log는 brute-force 줄과 함께 쓰므로 모듈을 구분한다.
     alertId: extractAlertId(alert ?? {}) ?? null,
     action: decision?.action ?? null,
     confidence: decision?.confidence ?? null,

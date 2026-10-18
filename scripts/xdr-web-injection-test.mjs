@@ -6,7 +6,8 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { respond, extractAlertId, RULE_TTL_MS } from '../xdr/web-injection/respond.mjs';
-import { guardedDecide, isXdrRuleId } from '../src/xdr-guard.mjs';
+import { guardedDecide, guardedDecideDetailed, isXdrRuleId } from '../src/xdr-guard.mjs';
+import { fixtureRequests } from './fixture-7.mjs';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -99,7 +100,7 @@ test('알림 로그는 경보당 한 줄 JSONL로 누적(skipped 포함)', async
   const lines = (await readFile(p.alertsLogPath, 'utf8')).trimEnd().split('\n');
   assert.equal(lines.length, 3);
   const rows = lines.map((l) => JSON.parse(l));
-  for (const k of ['ts', 'alertId', 'action', 'confidence', 'reason', 'ruleResult', 'expiresAt']) assert.ok(k in rows[0], k);
+  for (const k of ['ts', 'moduleKey', 'alertId', 'action', 'confidence', 'reason', 'ruleResult', 'expiresAt']) assert.ok(k in rows[0], k);
   assert.equal(rows[0].ruleResult.status, 'registered');
   assert.equal(rows[1].ruleResult.status, 'skipped');
   assert.equal(rows[1].expiresAt, null);
@@ -128,22 +129,47 @@ test('guard: 만료 전 같은 IP 거부(규칙 ID·근거 경보 포함), 만�
   const passed = { decision: 'allow', marker: 'from-decider' };
   const calls = [];
   const decide = (req) => { calls.push(req); return passed; };
-  const req = { path: '/notes/1' };
+  const req = { path: '/notes/1', requestId: 'req-1' };
 
-  const denied = await guardedDecide(req, { sourceIp: '198.51.100.7', now: T0 + 60_000, rulesPath: p.rulesPath, decide });
-  assert.equal(denied.decision, 'deny');
-  assert.ok(isXdrRuleId(denied.ruleId));
-  assert.equal(denied.evidenceAlertId, 'a-1');
+  const denied = await guardedDecideDetailed(req, { sourceIp: '198.51.100.7', now: T0 + 60_000, rulesPath: p.rulesPath, decide });
+  assert.equal(denied.response.decision, 'deny');
+  assert.ok(isXdrRuleId(denied.response.ruleIds[0]));
+  assert.equal(denied.xdr.ruleId, denied.response.ruleIds[0]);
+  assert.equal(denied.xdr.evidenceAlertId, 'a-1');
+  assert.equal(denied.xdr.expiresAt, new Date(T0 + RULE_TTL_MS).toISOString());
   assert.equal(calls.length, 0, '거부 시 기존 판정기를 호출하지 않아야 함');
 
   const justBefore = await guardedDecide(req, { sourceIp: '198.51.100.7', now: T0 + RULE_TTL_MS - 1, rulesPath: p.rulesPath, decide });
   assert.equal(justBefore.decision, 'deny');
   const expired = await guardedDecide(req, { sourceIp: '198.51.100.7', now: T0 + RULE_TTL_MS, rulesPath: p.rulesPath, decide });
   assert.equal(expired, passed);
-  const other = await guardedDecide(req, { sourceIp: '198.51.100.99', now: T0 + 60_000, rulesPath: p.rulesPath, decide });
-  assert.equal(other, passed);
+  const other = await guardedDecideDetailed(req, { sourceIp: '198.51.100.99', now: T0 + 60_000, rulesPath: p.rulesPath, decide });
+  assert.equal(other.response, passed);
+  assert.equal(other.xdr, null);
   const none = await guardedDecide(req, { now: T0 + 60_000, rulesPath: p.rulesPath, decide });
   assert.equal(none, passed);
+});
+
+test('guard: 거부 응답은 판정기 계약의 5개 항목만 가짐(실제 decide와 같은 형식)', async () => {
+  const p = paths();
+  await respond(attack(), BLOCK, { now: T0, ...p });
+  const { normal } = fixtureRequests();
+  const KEYS = 'decision,reasonCode,requestId,ruleIds,schema';
+
+  const denied = await guardedDecide(normal, { sourceIp: '198.51.100.7', now: T0 + 1000, rulesPath: p.rulesPath });
+  assert.equal(Object.keys(denied).sort().join(','), KEYS);
+  assert.equal(denied.schema, 'aleph.decision.v1');
+  assert.equal(denied.requestId, normal.requestId);
+  assert.equal(denied.decision, 'deny');
+  assert.match(denied.reasonCode, /^[a-z][a-z0-9_]{0,63}$/u);
+  assert.ok(denied.ruleIds.length > 0 && denied.ruleIds.every(isXdrRuleId));
+
+  // 규칙에 안 걸리면 기존 src/decider.mjs 결과와 같다(실제 판정기 호출).
+  const { decide } = await import('../src/decider.mjs');
+  const viaGuard = await guardedDecide(normal, { sourceIp: '192.0.2.250', now: T0 + 1000, rulesPath: p.rulesPath });
+  assert.deepEqual(viaGuard, await decide(normal));
+  assert.equal(viaGuard.decision, 'allow');
+  assert.ok(!viaGuard.ruleIds.some(isXdrRuleId));
 });
 
 test('guard: 요청 본문의 IP 필드는 출발지로 쓰지 않음', async () => {
@@ -240,13 +266,13 @@ test('종단: fixture를 흘리면 공격 출발지만 거부, wi-15~26 출발�
   for (const alert of alerts) {
     const id = extractAlertId(alert);
     const ip = alert.data?.srcip;
-    const res = await guardedDecide({ path: '/notes' }, { sourceIp: ip, ...ctx(T0 + 60_000) });
+    const { response: res, xdr } = await guardedDecideDetailed({ path: '/notes' }, { sourceIp: ip, ...ctx(T0 + 60_000) });
     const denied = res !== allow;
     if (denied) deniedCount += 1;
     assert.equal(denied, attackIps.has(ip), `${id}(${ip}): 공격 출발지만 거부되어야 함`);
     if (denied) {
       assert.equal(res.decision, 'deny');
-      assert.ok(res.ruleId && res.evidenceAlertId && res.expiresAt, `${id}: 거부 응답에 규칙 ID·근거 경보·만료가 있어야 함`);
+      assert.ok(res.ruleIds?.[0] && xdr?.ruleId === res.ruleIds[0] && xdr.evidenceAlertId && xdr.expiresAt, `${id}: 거부에 규칙 ID·근거 경보·만료가 있어야 함`);
     }
     if (NEVER_IDS.has(id) && denied) wronglyBlocked.push(id);
   }
