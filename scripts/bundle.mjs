@@ -76,8 +76,12 @@ try {
   if (typeof runAttackChecks !== 'function') fail('src/attack-check.mjs가 runAttackChecks를 내보내야 합니다.');
   const attackRecords = validateAttackRecords(await runAttackChecks(config));
   const attackSummary = summarizeAttackRecords(attackRecords);
-  // 채점표 형식. observed에는 실제로 받은 HTTP 상태만 적고, 보내지 않은 시험은 not_run으로 둔다.
+  // 채점표 형식. observed에는 실제로 받은 HTTP 상태만 적고, 보내지 않았거나 심판 요청 기록이 없는 시험은 not_run으로 둔다.
   const attackAttempts = validateAttackAttempts(toAttackAttempts(attackRecords));
+  // 보낸 요청과 제출 값의 대조: 요청은 보냈지만 제출 기록에는 not_run으로 적은 시험을 알려 준다.
+  const sentIds = new Set(attackRecords.filter((r) => r.status === 'pass' || r.status === 'fail').map((r) => r.testId));
+  const reportedNotRun = attackAttempts.filter((a) => a.observed === 'not_run' && sentIds.has(a.attackId)).map((a) => a.attackId);
+  const reportedStatus = attackAttempts.filter((a) => a.observed !== 'not_run').length;
   const bundle = {
     schema: 'aleph.defense.submission.v2', step: config.step, commit, repoUrl,
     changedFiles, policyRules,
@@ -93,6 +97,7 @@ try {
   process.stdout.write(`제출 묶음 JSON 생성: ${output}\n단계 ${bundle.step} · 커밋 ${commit.slice(0, 12)} · 바뀐 파일 ${changedFiles.length}개 · 규칙 ${policyRules.length}개\n`
     + `제출 묶음 attackAttempts ${attackAttempts.length}개\n`
     + `시험 기록 ${attackSummary.total}개 · 실측 ${attackSummary.measured}개(통과 ${attackSummary.pass} · 실패 ${attackSummary.fail}) · 미실행 ${attackSummary.not_run} · 미확인 ${attackSummary.unverified}\n`
+    + `제출 기록: 받은 HTTP 상태를 적은 시험 ${reportedStatus}개 · 요청은 보냈으나 심판 요청 기록이 없어 not_run으로 적은 시험 ${reportedNotRun.length}개${reportedNotRun.length ? ` (${reportedNotRun.join(', ')})` : ''}\n`
     + '미실행·미확인 항목은 요청을 보내지 않았으므로 성공으로 세지 않았습니다.\n');
 } catch (error) {
   process.stderr.write(`제출 묶음 생성 중 첫 오류: ${error.message}\n`);

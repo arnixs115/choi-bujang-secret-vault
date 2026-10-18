@@ -162,9 +162,18 @@ export function summarizeAttackRecords(records) {
 // (응답을 받지 못한 시험은 시험 기록표에서는 fail, 점검 결과 파일에서는 httpStatus null로 그대로 남는다.)
 export const MAX_SUBMISSION_ATTEMPTS = 20;
 
+// 심판 메모에서 "요청 기록이 없다"고 지적된 시험. 점검기는 요청을 보내고 응답을 받았지만, 심판이 해당 ID의
+// 요청 기록을 확인하지 못했으므로 제출 기록(attackAttempts)에서는 확인된 결과가 없는 것으로 not_run을 적는다.
+// 시험 기록표와 public/attack-results.json에는 실제로 받은 응답이 그대로 남는다. 새 메모가 오면 이 목록만 고친다.
+export const SENT_BUT_UNCONFIRMED = Object.freeze([
+  'anonymous_note_read', 'root_page_nosniff', 'aleph_json_public',
+  'anonymous_notes_list_denied', 'anonymous_note_by_id_denied', 'login_get_method_denied',
+]);
+
 export function toAttackAttempt(record) {
   let observed = 'not_run';
-  if ((record.status === 'pass' || record.status === 'fail') && Number.isInteger(record.httpStatus)) {
+  if ((record.status === 'pass' || record.status === 'fail') && Number.isInteger(record.httpStatus)
+      && !SENT_BUT_UNCONFIRMED.includes(record.testId)) {
     observed = String(record.httpStatus);
   }
   return { attackId: record.testId, expected: record.expected, observed };
