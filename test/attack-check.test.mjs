@@ -8,7 +8,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { ATTACK_ENV, runAttackChecks } from '../src/attack-check.mjs';
-import { summarizeAttackRecords, validateAttackRecords } from '../src/attack-record.mjs';
+import {
+  summarizeAttackRecords, toAttackAttempt, toAttackAttempts, validateAttackAttempts, validateAttackRecords,
+} from '../src/attack-record.mjs';
 import { pathToFileURL } from 'node:url';
 import {
   SAMPLE_MARKER, SECRET_NOTE_BODY, SECRET_NOTE_ID, SECRET_NOTE_TITLE, SECRET_SET_COOKIE,
@@ -361,31 +363,78 @@ function runBundle(dir) {
     join(dir, 'scripts', 'bundle.mjs')], { cwd: dir, env, encoding: 'utf8', timeout: 60000 });
 }
 
-test('bundle.mjs는 새 기록표를 v3 제출 묶음으로 저장하고 미실행·미확인을 성공으로 세지 않는다', () => {
+test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지 않은 시험은 not_run으로 둔다', () => {
   const dir = makeBundleRepo();
   try {
     const result = runBundle(dir);
     assert.equal(result.status, 0, result.stderr);
     const bundle = JSON.parse(readFileSync(join(dir, 'artifacts', 'submission.json'), 'utf8'));
-    assert.equal(bundle.schema, 'aleph.defense.submission.v3');
-    assert.equal(bundle.attackAttempts, undefined);
-    assert.ok(bundle.attackRecords.length > 20);
-    const { attackSummary: s } = bundle;
-    assert.equal(s.total, bundle.attackRecords.length);
-    assert.equal(s.pass, bundle.attackRecords.filter(r => r.status === 'pass').length);
-    assert.equal(s.fail, bundle.attackRecords.filter(r => r.status === 'fail').length);
-    assert.equal(s.measured, s.pass + s.fail);
-    assert.ok(s.not_run > 0 && s.unverified > 0);
-    assert.equal(s.measured + s.not_run + s.unverified, s.total);
-    // 실측 근거(상태 코드·시각)가 제출 묶음에 그대로 남는다.
-    const denied = bundle.attackRecords.find(r => r.testId === 'anonymous_notes_list_denied');
-    assert.equal(denied.httpStatus, 401);
-    assert.match(denied.checkedAt, /^\d{4}-\d{2}-\d{2}T/u);
-    assert.match(result.stdout, /미실행 \d+ · 미확인 \d+/u);
+    assert.equal(bundle.schema, 'aleph.defense.submission.v2');
+    assert.equal(bundle.attackRecords, undefined);
+    assert.equal(bundle.attackSummary, undefined);
+    assert.ok(bundle.attackAttempts.length >= 1 && bundle.attackAttempts.length <= 20);
+    for (const attempt of bundle.attackAttempts) {
+      assert.deepEqual(Object.keys(attempt).sort(), ['attackId', 'expected', 'observed']);
+    }
+    // 전체 기록표는 별도 근거 파일에 남고, 묶음의 observed는 그 기록과 같다.
+    const evidence = JSON.parse(readFileSync(join(dir, 'artifacts', 'attack-records.json'), 'utf8'));
+    assert.equal(evidence.records.length, 36);
+    const byId = new Map(evidence.records.map(r => [r.testId, r]));
+    for (const attempt of bundle.attackAttempts) {
+      const record = byId.get(attempt.attackId);
+      assert.ok(record, attempt.attackId);
+      if (record.status === 'pass' || record.status === 'fail') {
+        assert.equal(attempt.observed, `HTTP ${record.httpStatus}`);
+      } else {
+        assert.equal(attempt.observed, 'not_run');
+      }
+    }
+    // 실제로 요청을 보낸 시험은 모두 묶음에 들어 있고, 쓰기 요청 시험은 not_run이다.
+    const sentIds = evidence.records.filter(r => r.status === 'pass' || r.status === 'fail').map(r => r.testId);
+    for (const id of sentIds) assert.ok(bundle.attackAttempts.some(a => a.attackId === id), id);
+    const write = bundle.attackAttempts.filter(a => a.attackId === 'anonymous_note_create_denied');
+    assert.ok(write.every(a => a.observed === 'not_run'));
+    assert.equal(evidence.summary.measured + evidence.summary.not_run + evidence.summary.unverified, 36);
     assert.doesNotMatch(result.stdout + result.stderr, /cookie|SECRET/iu);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('attackAttempts 변환은 실제 HTTP 상태만 적고 보내지 않은 시험은 not_run으로 둔다', () => {
+  const sentRecord = (testId, over = {}) => fakeRecord({ testId, ...over });
+  const attempts = toAttackAttempts([
+    sentRecord('sent_pass'),
+    sentRecord('sent_fail', { status: 'fail', httpStatus: 200, reason: '기대 상태 401과 다름' }),
+    sentRecord('no_response', { status: 'fail', httpStatus: null, errorCode: null, headers: null }),
+    unsentRecord({ testId: 'not_run_write', method: 'POST' }),
+    unsentRecord({ testId: 'unverified_one', status: 'unverified' }),
+  ]);
+  assert.deepEqual(attempts.map(a => [a.attackId, a.observed]), [
+    ['sent_pass', 'HTTP 401'], ['sent_fail', 'HTTP 200'], ['no_response', 'no_response'],
+    ['not_run_write', 'not_run'], ['unverified_one', 'not_run'],
+  ]);
+  assert.ok(attempts.every(a => Object.keys(a).sort().join() === 'attackId,expected,observed'));
+  assert.doesNotThrow(() => validateAttackAttempts(attempts));
+});
+
+test('attackAttempts가 20개를 넘으면 실제로 보낸 시험을 먼저 넣고 표 순서를 지킨다', () => {
+  const records = [];
+  for (let i = 0; i < 30; i += 1) records.push(unsentRecord({ testId: `u${i}`, method: i % 2 ? 'GET' : 'POST' }));
+  records.splice(5, 0, fakeRecord({ testId: 'sent_a' }));
+  records.push(fakeRecord({ testId: 'sent_b' }));
+  const attempts = toAttackAttempts(records);
+  assert.equal(attempts.length, 20);
+  const ids = attempts.map(a => a.attackId);
+  assert.ok(ids.includes('sent_a') && ids.includes('sent_b'));
+  // 쓰기 요청이라 보내지 않은 시험 15개가 모두 들어가고, 남은 3자리만 읽기 시험이 표 순서대로 채운다.
+  const picked = ids.map(id => records.find(r => r.testId === id));
+  assert.equal(picked.filter(r => r.method === 'POST').length, 15);
+  assert.deepEqual(picked.filter(r => r.method === 'GET' && r.status === 'not_run').map(r => r.testId), ['u1', 'u3', 'u5']);
+  assert.deepEqual(ids, records.map(r => r.testId).filter(id => ids.includes(id)));
+  assert.throws(() => validateAttackAttempts(records.map(toAttackAttempt)), /1~20/u);
+  assert.throws(() => validateAttackAttempts([{ attackId: 'x', expected: 'y' }]), /attackId·expected·observed/u);
+  assert.throws(() => validateAttackAttempts([toAttackAttempt(records[0]), toAttackAttempt(records[0])]), /중복/u);
 });
 
 test('bundle.mjs는 예전 attackId·expected·observed 형식과 가짜 기록을 거부한다', () => {

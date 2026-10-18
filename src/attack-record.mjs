@@ -153,3 +153,52 @@ export function summarizeAttackRecords(records) {
   for (const record of records) summary[record.status] += 1;
   return { ...summary, measured: summary.pass + summary.fail };
 }
+
+// ---- 채점표 형식(attackAttempts) ----
+// 제출 묶음 `aleph.defense.submission.v2`의 attackAttempts는 { attackId, expected, observed } 세 필드만 가진다.
+// 시험 기록표의 기록을 이 모양으로 바꾼다. 실제로 받은 HTTP 상태만 observed에 적고,
+// 보내지 않은 시험(not_run·unverified)은 observed를 'not_run'으로 둔다.
+// 응답을 받지 못한 요청은 HTTP 상태가 없으므로 'no_response'로 적는다. 어떤 값도 만들어 넣지 않는다.
+export const MAX_SUBMISSION_ATTEMPTS = 20;
+
+export function toAttackAttempt(record) {
+  let observed = 'not_run';
+  if (record.status === 'pass' || record.status === 'fail') {
+    observed = Number.isInteger(record.httpStatus) ? `HTTP ${record.httpStatus}` : 'no_response';
+  }
+  return { attackId: record.testId, expected: record.expected, observed };
+}
+
+// 채점표는 한 묶음에 최대 20개를 받는다. 기록이 더 많으면 실제로 요청을 보낸 시험을 모두 먼저 넣고,
+// 남는 자리는 쓰기 요청이라 보내지 않은 시험, 나머지 순으로 표 순서대로 채운다. 전체 기록은 attack-records.json에 남는다.
+export function toAttackAttempts(records, max = MAX_SUBMISSION_ATTEMPTS) {
+  const rank = (record) => {
+    if (record.status === 'pass' || record.status === 'fail') return 0;
+    return ATTACK_READ_METHODS.includes(record.method) ? 2 : 1;
+  };
+  const chosen = records
+    .map((record, index) => ({ record, index }))
+    .sort((a, b) => rank(a.record) - rank(b.record) || a.index - b.index)
+    .slice(0, max)
+    .sort((a, b) => a.index - b.index);
+  return chosen.map(({ record }) => toAttackAttempt(record));
+}
+const ATTACK_READ_METHODS = Object.freeze(['GET', 'HEAD']);
+
+// 채점표 형식 검사: 세 필드만, ID는 유일, 글자 수 제한.
+export function validateAttackAttempts(attempts, max = MAX_SUBMISSION_ATTEMPTS) {
+  if (!Array.isArray(attempts) || !attempts.length || attempts.length > max) {
+    throw new Error(`직접 실행한 공격 점검 결과 1~${max}개가 필요합니다.`);
+  }
+  for (const attempt of attempts) {
+    if (!attempt || typeof attempt !== 'object' || Array.isArray(attempt)
+        || Object.keys(attempt).sort().join(',') !== 'attackId,expected,observed'
+        || typeof attempt.attackId !== 'string' || !/^[a-z0-9][a-z0-9_.-]{0,79}$/iu.test(attempt.attackId)
+        || typeof attempt.expected !== 'string' || !attempt.expected.trim() || attempt.expected.length > 300
+        || typeof attempt.observed !== 'string' || !attempt.observed.trim() || attempt.observed.length > 300) {
+      throw new Error('공격 점검 결과에는 attackId·expected·observed만 넣어 주세요.');
+    }
+  }
+  if (new Set(attempts.map(item => item.attackId)).size !== attempts.length) throw new Error('공격 점검 ID가 중복되었습니다.');
+  return attempts;
+}

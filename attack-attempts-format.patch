@@ -1,0 +1,233 @@
+diff --git a/README.md b/README.md
+index 46defb9..9f0533a 100644
+--- a/README.md
++++ b/README.md
+@@ -868,7 +868,7 @@ node -e "import('./src/attack-check.mjs').then(async m=>console.table((await m.r
+ 
+ 작전실에 보일 결과 파일은 같은 점검기를 실행해 `public/attack-results.json`으로 저장합니다(아래 5-1절): `npm run attack:results`.
+ 
+-제출 묶음은 `npm run bundle`로 만듭니다. 형식은 `aleph.defense.submission.v3`(시험 기록표 `attackRecords`)이며, 접수 서버가 v3를 받는지는 확인하지 못했습니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
++제출 묶음은 `npm run bundle`로 만듭니다. 형식은 채점표가 읽는 `aleph.defense.submission.v2`이며, 점검 결과는 `attackAttempts`(`attackId`·`expected`·`observed`, 최대 20개)로 들어갑니다. `observed`에는 실제로 받은 HTTP 상태(`HTTP 401` 등)만 적고, 요청을 보내지 않은 시험은 `not_run`, 응답을 받지 못한 시험은 `no_response`입니다. 20개를 넘는 시험표는 실제로 보낸 시험을 먼저 넣고, 전체 시험 기록(요청 ID·확인 시각 포함)은 `artifacts/attack-records.json`에 따로 남습니다. `bundle-notes.json`, `artifacts/submission.json`, `artifacts/attack-records.json`은 커밋하지 않습니다.
+ 
+ #### 5. 재현 순서와 기대 결과
+ 
+@@ -1015,4 +1015,4 @@ npm run test:device
+ 
+ [AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 2단계부터는 자료 보호를 구현할 때 `public/data.json`을 복사하는 1단계 빌드 흐름도 함께 바꿔야 합니다. 3단계 이후의 로그인, 허용 경로, 5단계의 원본 API 주소, 6단계 이후 정책 규칙은 해당 단계 원고와 계약에 맞춰 추가합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
+ 
+-`src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 반 엔진이나 운영 심판의 결과가 아닙니다. 제출 묶음 계약 `aleph.defense.submission.v3`는 `scripts/bundle.mjs`에 구현되어 있으며, 코딩 도구가 해당 단계의 최신 배포 주소와 Git 원격을 맞춘 뒤 사용합니다.
++`src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 반 엔진이나 운영 심판의 결과가 아닙니다. 제출 묶음 계약 `aleph.defense.submission.v2`(`attackAttempts` 채점표 형식)는 `scripts/bundle.mjs`에 구현되어 있으며, 코딩 도구가 해당 단계의 최신 배포 주소와 Git 원격을 맞춘 뒤 사용합니다.
+diff --git a/scripts/bundle.mjs b/scripts/bundle.mjs
+index fae4cc4..7efc501 100644
+--- a/scripts/bundle.mjs
++++ b/scripts/bundle.mjs
+@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process';
+ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+ import { join, resolve } from 'node:path';
+ import { pathToFileURL } from 'node:url';
+-import { summarizeAttackRecords, validateAttackRecords } from '../src/attack-record.mjs';
++import {
++  summarizeAttackRecords, toAttackAttempts, validateAttackAttempts, validateAttackRecords,
++} from '../src/attack-record.mjs';
+ 
+ const root = resolve(import.meta.dirname, '..');
+ const git = (...args) => execFileSync('git', ['-C', root, ...args], {
+@@ -74,11 +76,12 @@ try {
+   if (typeof runAttackChecks !== 'function') fail('src/attack-check.mjs가 runAttackChecks를 내보내야 합니다.');
+   const attackRecords = validateAttackRecords(await runAttackChecks(config));
+   const attackSummary = summarizeAttackRecords(attackRecords);
++  // 채점표 형식. observed에는 실제로 받은 HTTP 상태만 적고, 보내지 않은 시험은 not_run으로 둔다.
++  const attackAttempts = validateAttackAttempts(toAttackAttempts(attackRecords));
+   const bundle = {
+-    schema: 'aleph.defense.submission.v3', step: config.step, commit, repoUrl,
++    schema: 'aleph.defense.submission.v2', step: config.step, commit, repoUrl,
+     changedFiles, policyRules,
+-    // 1~11단계 시험 기록표. pass·fail은 실제로 보낸 요청의 결과이고, not_run·unverified는 보내지 않은 시험이다.
+-    attackRecords, attackSummary,
++    attackAttempts,
+     explanation: notes.explanation.trim(), blockedAt: notes.blockedAt ?? null,
+     identityProvider: config.identityProvider ?? null, allowedRoutes: config.allowedRoutes ?? [],
+     originalApiUrl: config.originalApiUrl ?? null, restoreRoute: config.restoreRoute ?? null,
+@@ -87,7 +90,13 @@ try {
+   mkdirSync(join(root, 'artifacts'), { recursive: true });
+   const output = join(root, 'artifacts', 'submission.json');
+   writeFileSync(output, `${JSON.stringify(bundle, null, 2)}\n`, { encoding: 'utf8', flag: 'w' });
++  // 전체 시험 기록표(요청 ID·확인 시각·헤더 포함). 제출 묶음이 아니라 근거 보관용이며 커밋하지 않는다.
++  const evidence = { schema: 'aleph.attack-records.v1', commit, summary: attackSummary, records: attackRecords };
++  if (secretPattern.test(JSON.stringify(evidence))) fail('시험 기록표에 비밀값 또는 연락처로 보이는 내용이 있습니다.');
++  const evidenceOutput = join(root, 'artifacts', 'attack-records.json');
++  writeFileSync(evidenceOutput, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: 'utf8', flag: 'w' });
+   process.stdout.write(`제출 묶음 JSON 생성: ${output}\n단계 ${bundle.step} · 커밋 ${commit.slice(0, 12)} · 바뀐 파일 ${changedFiles.length}개 · 규칙 ${policyRules.length}개\n`
++    + `제출 묶음 attackAttempts ${attackAttempts.length}개(전체 시험 기록은 ${evidenceOutput})\n`
+     + `시험 기록 ${attackSummary.total}개 · 실측 ${attackSummary.measured}개(통과 ${attackSummary.pass} · 실패 ${attackSummary.fail}) · 미실행 ${attackSummary.not_run} · 미확인 ${attackSummary.unverified}\n`
+     + '미실행·미확인 항목은 요청을 보내지 않았으므로 성공으로 세지 않았습니다.\n');
+ } catch (error) {
+diff --git a/src/attack-record.mjs b/src/attack-record.mjs
+index 3ada211..e056b80 100644
+--- a/src/attack-record.mjs
++++ b/src/attack-record.mjs
+@@ -153,3 +153,52 @@ export function summarizeAttackRecords(records) {
+   for (const record of records) summary[record.status] += 1;
+   return { ...summary, measured: summary.pass + summary.fail };
+ }
++
++// ---- 채점표 형식(attackAttempts) ----
++// 제출 묶음 `aleph.defense.submission.v2`의 attackAttempts는 { attackId, expected, observed } 세 필드만 가진다.
++// 시험 기록표의 기록을 이 모양으로 바꾼다. 실제로 받은 HTTP 상태만 observed에 적고,
++// 보내지 않은 시험(not_run·unverified)은 observed를 'not_run'으로 둔다.
++// 응답을 받지 못한 요청은 HTTP 상태가 없으므로 'no_response'로 적는다. 어떤 값도 만들어 넣지 않는다.
++export const MAX_SUBMISSION_ATTEMPTS = 20;
++
++export function toAttackAttempt(record) {
++  let observed = 'not_run';
++  if (record.status === 'pass' || record.status === 'fail') {
++    observed = Number.isInteger(record.httpStatus) ? `HTTP ${record.httpStatus}` : 'no_response';
++  }
++  return { attackId: record.testId, expected: record.expected, observed };
++}
++
++// 채점표는 한 묶음에 최대 20개를 받는다. 기록이 더 많으면 실제로 요청을 보낸 시험을 모두 먼저 넣고,
++// 남는 자리는 쓰기 요청이라 보내지 않은 시험, 나머지 순으로 표 순서대로 채운다. 전체 기록은 attack-records.json에 남는다.
++export function toAttackAttempts(records, max = MAX_SUBMISSION_ATTEMPTS) {
++  const rank = (record) => {
++    if (record.status === 'pass' || record.status === 'fail') return 0;
++    return ATTACK_READ_METHODS.includes(record.method) ? 2 : 1;
++  };
++  const chosen = records
++    .map((record, index) => ({ record, index }))
++    .sort((a, b) => rank(a.record) - rank(b.record) || a.index - b.index)
++    .slice(0, max)
++    .sort((a, b) => a.index - b.index);
++  return chosen.map(({ record }) => toAttackAttempt(record));
++}
++const ATTACK_READ_METHODS = Object.freeze(['GET', 'HEAD']);
++
++// 채점표 형식 검사: 세 필드만, ID는 유일, 글자 수 제한.
++export function validateAttackAttempts(attempts, max = MAX_SUBMISSION_ATTEMPTS) {
++  if (!Array.isArray(attempts) || !attempts.length || attempts.length > max) {
++    throw new Error(`직접 실행한 공격 점검 결과 1~${max}개가 필요합니다.`);
++  }
++  for (const attempt of attempts) {
++    if (!attempt || typeof attempt !== 'object' || Array.isArray(attempt)
++        || Object.keys(attempt).sort().join(',') !== 'attackId,expected,observed'
++        || typeof attempt.attackId !== 'string' || !/^[a-z0-9][a-z0-9_.-]{0,79}$/iu.test(attempt.attackId)
++        || typeof attempt.expected !== 'string' || !attempt.expected.trim() || attempt.expected.length > 300
++        || typeof attempt.observed !== 'string' || !attempt.observed.trim() || attempt.observed.length > 300) {
++      throw new Error('공격 점검 결과에는 attackId·expected·observed만 넣어 주세요.');
++    }
++  }
++  if (new Set(attempts.map(item => item.attackId)).size !== attempts.length) throw new Error('공격 점검 ID가 중복되었습니다.');
++  return attempts;
++}
+diff --git a/test/attack-check.test.mjs b/test/attack-check.test.mjs
+index 5658100..e736a9e 100644
+--- a/test/attack-check.test.mjs
++++ b/test/attack-check.test.mjs
+@@ -8,7 +8,9 @@ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import { test } from 'node:test';
+ import { ATTACK_ENV, runAttackChecks } from '../src/attack-check.mjs';
+-import { summarizeAttackRecords, validateAttackRecords } from '../src/attack-record.mjs';
++import {
++  summarizeAttackRecords, toAttackAttempt, toAttackAttempts, validateAttackAttempts, validateAttackRecords,
++} from '../src/attack-record.mjs';
+ import { pathToFileURL } from 'node:url';
+ import {
+   SAMPLE_MARKER, SECRET_NOTE_BODY, SECRET_NOTE_ID, SECRET_NOTE_TITLE, SECRET_SET_COOKIE,
+@@ -361,33 +363,80 @@ function runBundle(dir) {
+     join(dir, 'scripts', 'bundle.mjs')], { cwd: dir, env, encoding: 'utf8', timeout: 60000 });
+ }
+ 
+-test('bundle.mjs는 새 기록표를 v3 제출 묶음으로 저장하고 미실행·미확인을 성공으로 세지 않는다', () => {
++test('bundle.mjs는 채점표 형식의 attackAttempts를 내보내고 보내지 않은 시험은 not_run으로 둔다', () => {
+   const dir = makeBundleRepo();
+   try {
+     const result = runBundle(dir);
+     assert.equal(result.status, 0, result.stderr);
+     const bundle = JSON.parse(readFileSync(join(dir, 'artifacts', 'submission.json'), 'utf8'));
+-    assert.equal(bundle.schema, 'aleph.defense.submission.v3');
+-    assert.equal(bundle.attackAttempts, undefined);
+-    assert.ok(bundle.attackRecords.length > 20);
+-    const { attackSummary: s } = bundle;
+-    assert.equal(s.total, bundle.attackRecords.length);
+-    assert.equal(s.pass, bundle.attackRecords.filter(r => r.status === 'pass').length);
+-    assert.equal(s.fail, bundle.attackRecords.filter(r => r.status === 'fail').length);
+-    assert.equal(s.measured, s.pass + s.fail);
+-    assert.ok(s.not_run > 0 && s.unverified > 0);
+-    assert.equal(s.measured + s.not_run + s.unverified, s.total);
+-    // 실측 근거(상태 코드·시각)가 제출 묶음에 그대로 남는다.
+-    const denied = bundle.attackRecords.find(r => r.testId === 'anonymous_notes_list_denied');
+-    assert.equal(denied.httpStatus, 401);
+-    assert.match(denied.checkedAt, /^\d{4}-\d{2}-\d{2}T/u);
+-    assert.match(result.stdout, /미실행 \d+ · 미확인 \d+/u);
++    assert.equal(bundle.schema, 'aleph.defense.submission.v2');
++    assert.equal(bundle.attackRecords, undefined);
++    assert.equal(bundle.attackSummary, undefined);
++    assert.ok(bundle.attackAttempts.length >= 1 && bundle.attackAttempts.length <= 20);
++    for (const attempt of bundle.attackAttempts) {
++      assert.deepEqual(Object.keys(attempt).sort(), ['attackId', 'expected', 'observed']);
++    }
++    // 전체 기록표는 별도 근거 파일에 남고, 묶음의 observed는 그 기록과 같다.
++    const evidence = JSON.parse(readFileSync(join(dir, 'artifacts', 'attack-records.json'), 'utf8'));
++    assert.equal(evidence.records.length, 36);
++    const byId = new Map(evidence.records.map(r => [r.testId, r]));
++    for (const attempt of bundle.attackAttempts) {
++      const record = byId.get(attempt.attackId);
++      assert.ok(record, attempt.attackId);
++      if (record.status === 'pass' || record.status === 'fail') {
++        assert.equal(attempt.observed, `HTTP ${record.httpStatus}`);
++      } else {
++        assert.equal(attempt.observed, 'not_run');
++      }
++    }
++    // 실제로 요청을 보낸 시험은 모두 묶음에 들어 있고, 쓰기 요청 시험은 not_run이다.
++    const sentIds = evidence.records.filter(r => r.status === 'pass' || r.status === 'fail').map(r => r.testId);
++    for (const id of sentIds) assert.ok(bundle.attackAttempts.some(a => a.attackId === id), id);
++    const write = bundle.attackAttempts.filter(a => a.attackId === 'anonymous_note_create_denied');
++    assert.ok(write.every(a => a.observed === 'not_run'));
++    assert.equal(evidence.summary.measured + evidence.summary.not_run + evidence.summary.unverified, 36);
+     assert.doesNotMatch(result.stdout + result.stderr, /cookie|SECRET/iu);
+   } finally {
+     rmSync(dir, { recursive: true, force: true });
+   }
+ });
+ 
++test('attackAttempts 변환은 실제 HTTP 상태만 적고 보내지 않은 시험은 not_run으로 둔다', () => {
++  const sentRecord = (testId, over = {}) => fakeRecord({ testId, ...over });
++  const attempts = toAttackAttempts([
++    sentRecord('sent_pass'),
++    sentRecord('sent_fail', { status: 'fail', httpStatus: 200, reason: '기대 상태 401과 다름' }),
++    sentRecord('no_response', { status: 'fail', httpStatus: null, errorCode: null, headers: null }),
++    unsentRecord({ testId: 'not_run_write', method: 'POST' }),
++    unsentRecord({ testId: 'unverified_one', status: 'unverified' }),
++  ]);
++  assert.deepEqual(attempts.map(a => [a.attackId, a.observed]), [
++    ['sent_pass', 'HTTP 401'], ['sent_fail', 'HTTP 200'], ['no_response', 'no_response'],
++    ['not_run_write', 'not_run'], ['unverified_one', 'not_run'],
++  ]);
++  assert.ok(attempts.every(a => Object.keys(a).sort().join() === 'attackId,expected,observed'));
++  assert.doesNotThrow(() => validateAttackAttempts(attempts));
++});
++
++test('attackAttempts가 20개를 넘으면 실제로 보낸 시험을 먼저 넣고 표 순서를 지킨다', () => {
++  const records = [];
++  for (let i = 0; i < 30; i += 1) records.push(unsentRecord({ testId: `u${i}`, method: i % 2 ? 'GET' : 'POST' }));
++  records.splice(5, 0, fakeRecord({ testId: 'sent_a' }));
++  records.push(fakeRecord({ testId: 'sent_b' }));
++  const attempts = toAttackAttempts(records);
++  assert.equal(attempts.length, 20);
++  const ids = attempts.map(a => a.attackId);
++  assert.ok(ids.includes('sent_a') && ids.includes('sent_b'));
++  // 쓰기 요청이라 보내지 않은 시험 15개가 모두 들어가고, 남은 3자리만 읽기 시험이 표 순서대로 채운다.
++  const picked = ids.map(id => records.find(r => r.testId === id));
++  assert.equal(picked.filter(r => r.method === 'POST').length, 15);
++  assert.deepEqual(picked.filter(r => r.method === 'GET' && r.status === 'not_run').map(r => r.testId), ['u1', 'u3', 'u5']);
++  assert.deepEqual(ids, records.map(r => r.testId).filter(id => ids.includes(id)));
++  assert.throws(() => validateAttackAttempts(records.map(toAttackAttempt)), /1~20/u);
++  assert.throws(() => validateAttackAttempts([{ attackId: 'x', expected: 'y' }]), /attackId·expected·observed/u);
++  assert.throws(() => validateAttackAttempts([toAttackAttempt(records[0]), toAttackAttempt(records[0])]), /중복/u);
++});
++
+ test('bundle.mjs는 예전 attackId·expected·observed 형식과 가짜 기록을 거부한다', () => {
+   const legacy = makeBundleRepo(`export async function runAttackChecks() {
+     return [{ attackId: 'anonymous_note_read', expected: '확인', observed: '확인됨' }];
