@@ -1,6 +1,6 @@
 {
   "schema": "aleph.attack-results.v1",
-  "generatedAt": "2026-10-18T04:15:16.637Z",
+  "generatedAt": "2026-10-18T04:20:13.238Z",
   "summary": {
     "total": 36,
     "pass": 20,
@@ -28,9 +28,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::mfxdh-1792296903937-99b36f430495",
+      "requestId": "icn1::scqbd-1792297204374-be5855e7272e",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:03.321Z",
+      "checkedAt": "2026-10-18T04:20:03.766Z",
       "observed": "비로그인 요청에서 확인 표시가 보이지 않음 (HTTP 200)",
       "reason": "응답에 공개 가상 메모 확인 표시가 없음"
     },
@@ -52,9 +52,9 @@
         "content-type": "text/html; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::xxnrz-1792296904339-180e1b616c66",
+      "requestId": "icn1::scqbd-1792297204976-e1a9487e7620",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:03.860Z",
+      "checkedAt": "2026-10-18T04:20:04.498Z",
       "observed": "HTTP 200 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
       "reason": null
     },
@@ -76,9 +76,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::7mrdc-1792296905085-d07aa1daa032",
+      "requestId": "icn1::7mrdc-1792297205373-06874e9608fa",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:04.606Z",
+      "checkedAt": "2026-10-18T04:20:04.894Z",
       "observed": "HTTP 200 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
       "reason": null
     },
@@ -118,9 +118,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::7mrdc-1792296905485-41c2906c4e2f",
+      "requestId": "icn1::iad1::7mrdc-1792297205975-1f4f060a00f4",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:05.007Z",
+      "checkedAt": "2026-10-18T04:20:05.496Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -142,9 +142,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::c54kz-1792296906666-c50e0320044b",
+      "requestId": "icn1::iad1::7mrdc-1792297206376-d8f8d6ab1865",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:06.187Z",
+      "checkedAt": "2026-10-18T04:20:05.897Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -186,9 +186,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::mm4sp-1792296907700-8c0b156d78f2",
+      "requestId": "icn1::iad1::7mrdc-1792297206770-b86c66df4a0f",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:07.220Z",
+      "checkedAt": "2026-10-18T04:20:06.289Z",
       "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -210,9 +210,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::c54kz-1792296908580-7a173eab609d",
+      "requestId": "icn1::iad1::7mrdc-1792297207365-f5ae956aa03f",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:08.101Z",
+      "checkedAt": "2026-10-18T04:20:06.885Z",
       "observed": "HTTP 400 · INVALID_LOGIN_INPUT · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -234,9 +234,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::c54kz-1792296908965-9f9b88f00eb1",
+      "requestId": "icn1::iad1::5lmhv-1792297207753-c3d96aca0578",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:08.486Z",
+      "checkedAt": "2026-10-18T04:20:07.274Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -330,9 +330,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::c54kz-1792296909353-4555369c431f",
+      "requestId": "icn1::iad1::92dff-1792297208359-77e9b46584df",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:08.874Z",
+      "checkedAt": "2026-10-18T04:20:07.879Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -354,9 +354,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::c54kz-1792296909741-51cd495b4dff",
+      "requestId": "icn1::iad1::92dff-1792297208935-0c48bd9ba3dd",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:09.263Z",
+      "checkedAt": "2026-10-18T04:20:08.456Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -378,9 +378,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::c54kz-1792296910130-5044bddac01e",
+      "requestId": "icn1::iad1::92dff-1792297209329-e59bd47f1320",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:09.647Z",
+      "checkedAt": "2026-10-18T04:20:08.849Z",
       "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -402,9 +402,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::mm4sp-1792296910512-7a3745e1cf99",
+      "requestId": "icn1::iad1::7mrdc-1792297209710-148514ce02a7",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:10.033Z",
+      "checkedAt": "2026-10-18T04:20:09.229Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -426,9 +426,9 @@
         "content-type": "text/plain; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::lxg98-1792296910887-d46ce1fd0cb6",
+      "requestId": "icn1::5lmhv-1792297210096-2531e5f17b4a",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:10.408Z",
+      "checkedAt": "2026-10-18T04:20:09.616Z",
       "observed": "HTTP 404 · cache-control: public, max-age=0, must-revalidate · x-content-type-options: nosniff",
       "reason": null
     },
@@ -506,9 +506,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::lxg98-1792296911067-04ccf6db9deb",
+      "requestId": "icn1::iad1::92dff-1792297210272-564aa685fa55",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:10.588Z",
+      "checkedAt": "2026-10-18T04:20:09.786Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -530,9 +530,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::fpd74-1792296912076-fa1a3009d084",
+      "requestId": "icn1::iad1::zq9lf-1792297210666-20b11d2a264c",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:11.594Z",
+      "checkedAt": "2026-10-18T04:20:10.185Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -554,9 +554,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::lxg98-1792296912465-737590938a52",
+      "requestId": "icn1::iad1::jfdfr-1792297211035-60169ff14bb1",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:11.986Z",
+      "checkedAt": "2026-10-18T04:20:10.552Z",
       "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -616,9 +616,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::xxnrz-1792296912860-4c1a89fd5ffa",
+      "requestId": "icn1::iad1::jfdfr-1792297211438-25ad11c490e7",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:12.381Z",
+      "checkedAt": "2026-10-18T04:20:10.943Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -640,9 +640,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::92dff-1792296914038-833cbecddab9",
+      "requestId": "icn1::iad1::lxg98-1792297211955-a63b908f42f1",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:13.558Z",
+      "checkedAt": "2026-10-18T04:20:11.451Z",
       "observed": "HTTP 403 · INVALID_ORIGIN · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -665,9 +665,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::92dff-1792296914410-9b59880c0167",
+      "requestId": "icn1::iad1::lxg98-1792297212376-7cf2384f1ffc",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:13.931Z",
+      "checkedAt": "2026-10-18T04:20:11.865Z",
       "observed": "HTTP 405 · METHOD_NOT_ALLOWED · cache-control: no-store · x-content-type-options: nosniff · allow: POST",
       "reason": null
     },
@@ -689,9 +689,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::scqbd-1792296914785-98daee44bfc8",
+      "requestId": "icn1::iad1::zq9lf-1792297212843-f659b1720b0a",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:14.306Z",
+      "checkedAt": "2026-10-18T04:20:12.343Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },
@@ -713,9 +713,9 @@
         "content-type": "application/json; charset=utf-8",
         "x-content-type-options": "nosniff"
       },
-      "requestId": "icn1::iad1::7mrdc-1792296916018-8385cf79d434",
+      "requestId": "icn1::iad1::d4cc5-1792297213372-fbb9f97f83e3",
       "requestIdSource": "x-vercel-id",
-      "checkedAt": "2026-10-18T04:15:15.539Z",
+      "checkedAt": "2026-10-18T04:20:12.889Z",
       "observed": "HTTP 401 · UNAUTHORIZED · cache-control: no-store · x-content-type-options: nosniff",
       "reason": null
     },

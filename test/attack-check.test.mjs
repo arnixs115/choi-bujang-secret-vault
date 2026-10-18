@@ -42,6 +42,13 @@ const unsentRecord = (overrides = {}) => fakeRecord({
   checkedAt: null, observed: null, reason: '보내지 않음', ...overrides,
 });
 
+test('점검 파일은 서버 코드를 가져오지 않고 쿠키 이름은 서버 상수와 같다', async () => {
+  const source = readFileSync(join(root, 'src', 'attack-check.mjs'), 'utf8');
+  assert.doesNotMatch(source, /from\s+['"][^'"]*device-session/u);
+  const { DEVICE_COOKIE } = await import('../src/device-session.mjs');
+  assert.ok(source.includes(`const DEVICE_COOKIE = '${DEVICE_COOKIE}';`));
+});
+
 test('금지 요청이 실제로 거부된 응답은 측정 결과(pass)로 기록된다', async () => {
   const deployment = createFakeDeployment();
   const byId = await run(deployment);

@@ -9,7 +9,6 @@
 // 세션이 필요한 나머지 시험은 보내지 않고 not_run으로 남긴다.
 //   ATTACK_CHECK_LOGIN_TOKEN   로그인 세션 쿠키(__Host-byte-back-session)의 값
 //   ATTACK_CHECK_DEVICE_TOKEN  기기 세션 쿠키(__Host-byte-back-device-session)의 값
-import { DEVICE_COOKIE } from './device-session.mjs';
 import {
   ERROR_CODE_PATTERN,
   RECORDABLE_HEADERS,
@@ -32,6 +31,8 @@ const FOREIGN_ORIGIN = 'https://attacker.invalid';
 const PLACEHOLDER_NOTE_ID = '00000000-0000-4000-8000-000000000000';
 // verify-login.mjs가 읽는 로그인 쿠키 이름
 const LOGIN_COOKIE = '__Host-byte-back-session';
+// src/device-session.mjs의 DEVICE_COOKIE와 같은 이름. 점검 파일이 서버 코드를 가져오지 않도록 여기에 둔다.
+const DEVICE_COOKIE = '__Host-byte-back-device-session';
 const LOGIN_TOKEN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 const DEVICE_TOKEN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
