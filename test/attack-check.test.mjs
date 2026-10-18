@@ -209,6 +209,22 @@ test('요청 수 상한에 닿으면 남은 시험은 보내지 않고 미실행
   assert.match(byId.get('device_status_get_method_denied').reason, /상한/u);
 });
 
+test('요청은 문자열 주소와 필요한 옵션만으로 보내 엄격한 가로채기 환경에서도 기록된다', async () => {
+  const deployment = createFakeDeployment();
+  const seen = [];
+  const strictFetch = async (url, init) => {
+    if (typeof url !== 'string') throw new TypeError('url must be a string');
+    if ('body' in init) throw new TypeError('body is not allowed on GET');
+    seen.push(`${init.method} ${new URL(url).pathname}`);
+    return deployment.fetch(url, init);
+  };
+  const records = await runAttackChecks(config, { fetch: strictFetch, delayMs: 0, env: {} });
+  const sent = records.filter((record) => record.status === 'pass' || record.status === 'fail');
+  assert.equal(sent.length, 9);
+  assert.equal(seen.length, 9);
+  assert.ok(sent.every((record) => Number.isInteger(record.httpStatus)));
+});
+
 test('기대 결과와 실제 결과가 다르면 fail로 기록된다', async () => {
   const deployment = createFakeDeployment({ overrides: {
     // 로그인 없이 목록이 열리는 잘못된 배포

@@ -285,9 +285,11 @@ async function execute(def, ctx) {
   const checkedAt = ctx.now().toISOString();
   let response;
   try {
-    response = await ctx.fetch(new URL(requestPath, ctx.app), {
-      method: def.method, headers, body, redirect: 'error', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    // 주소는 문자열로, 본문이 없으면 body 키를 아예 넣지 않는다. 요청을 가로채 기록하는 실행 환경이
+    // URL 객체나 값이 없는 옵션 키를 받지 못해 요청을 막는 일이 없게 가장 단순한 호출 모양으로 보낸다.
+    const init = { method: def.method, headers, redirect: 'error', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) };
+    if (body !== undefined) init.body = body;
+    response = await ctx.fetch(new URL(requestPath, ctx.app).href, init);
   } catch (error) {
     // 요청은 보냈지만 응답이 없다. 거부된 것으로도, 허용된 것으로도 세지 않고 실패로 남긴다.
     const kind = typeof error?.name === 'string' && /^[A-Za-z]{1,40}$/u.test(error.name) ? error.name : 'Error';
