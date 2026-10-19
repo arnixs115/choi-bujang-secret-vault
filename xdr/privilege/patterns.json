@@ -1,0 +1,28 @@
+{
+  "moduleKey": "privilege",
+  "patterns": [
+    {
+      "name": "administrator_group_addition",
+      "conditions": [
+        "경보 설명이나 필드에서 계정이 administrators 또는 이에 해당하는 관리자 그룹에 추가된 사실이 확인됨"
+      ],
+      "evidence": "MITRE ATT&CK T1078(Valid Accounts)은 유효한 계정의 악용을 다룬다. 관리자 그룹에 계정을 추가한 사실은 권한 변경 신호로 사용하되, 이 사실만으로 계정 탈취를 확정하지 않는다."
+    },
+    {
+      "name": "unusual_admin_command",
+      "conditions": [
+        "경보 설명에서 일반 사용자 또는 다른 계정의 권한으로 관리자 명령을 실행한 사실이 확인됨",
+        "또는 관리자 명령 실행과 낯선 출발 주소 등 추가적인 이상 징후가 함께 확인됨"
+      ],
+      "evidence": "MITRE ATT&CK T1068(Exploitation for Privilege Escalation)은 권한 상승을 위한 취약점 악용을 다룬다. 관리자 명령 실행은 권한 상승 조사 신호로 삼되, 명령 실행만으로 취약점 악용을 단정하지 않는다."
+    },
+    {
+      "name": "after_hours_privilege_use",
+      "conditions": [
+        "경보 시각이 사전에 정한 업무 시간 밖에 해당함",
+        "그리고 관리자 권한 사용이나 관리자 그룹 변경 같은 권한 관련 활동이 확인됨"
+      ],
+      "evidence": "MITRE ATT&CK T1078(Valid Accounts)은 유효한 계정의 악용을 다룬다. 업무 시간 밖의 권한 사용은 보조적인 이상 징후이며, 시간 정보만으로 공격을 확정하지 않는다."
+    }
+  ]
+}
