@@ -52,51 +52,51 @@
     },
     {
       "alertId": "ps-09",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_scheduled_task_signal"
     },
     {
       "alertId": "ps-10",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_startup_signal"
     },
     {
       "alertId": "ps-11",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_service_signal"
     },
     {
       "alertId": "ps-12",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_scheduled_task_signal"
     },
     {
       "alertId": "ps-13",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_service_signal"
     },
     {
       "alertId": "ps-14",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_startup_signal"
     },
     {
       "alertId": "ps-15",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_scheduled_task_signal"
     },
     {
       "alertId": "ps-16",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "partial_service_signal"
     },
     {
       "alertId": "ps-17",
@@ -149,7 +149,7 @@
   ],
   "counts": {
     "block": 8,
-    "alert": 0,
-    "record": 16
+    "alert": 8,
+    "record": 8
   }
 }
