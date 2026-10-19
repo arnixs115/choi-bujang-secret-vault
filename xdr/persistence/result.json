@@ -16,8 +16,8 @@
     },
     {
       "alertId": "ps-03",
-      "action": "alert",
-      "confidence": 0.65,
+      "action": "block",
+      "confidence": 0.9,
       "reason": "startup_folder_change"
     },
     {
@@ -40,15 +40,15 @@
     },
     {
       "alertId": "ps-07",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "unusual_scheduled_task"
     },
     {
       "alertId": "ps-08",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "no_persistence_pattern"
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "unsigned_new_service"
     },
     {
       "alertId": "ps-09",
@@ -148,8 +148,8 @@
     }
   ],
   "counts": {
-    "block": 5,
-    "alert": 1,
-    "record": 18
+    "block": 8,
+    "alert": 0,
+    "record": 16
   }
 }

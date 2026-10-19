@@ -25,8 +25,31 @@ export async function runXdr({ root, moduleKey, writeError = (line) => console.e
   if (fixture?.schema !== 'aleph.xdr.fixture.v1' || fixture.moduleKey !== moduleKey || !Array.isArray(fixture.alerts)) {
     throw new Error('경보 묶음 형식이 아닙니다.');
   }
+  
   const loaded = await import(pathToFileURL(join(root, 'xdr', moduleKey, 'decide.mjs')).href);
-  if (typeof loaded.decide !== 'function') throw new Error('decide 함수를 내보내지 않았습니다.');
+  if (typeof loaded.decide !== 'function') {throw new Error('decide 함수를 내보내지 않았습니다.');}
+
+  let persistencePatterns = null;
+
+  if (moduleKey === 'persistence') {
+    const config = JSON.parse(
+      await readFile(
+        join(root, 'xdr', 'persistence', 'patterns.json'),
+        'utf8',
+      ),
+    );
+
+    if (
+      config?.moduleKey !== 'persistence' ||
+      !Array.isArray(config.patterns) ||
+      config.patterns.length === 0
+    ) {
+      throw new Error('persistence 패턴 설정 형식이 아닙니다.');
+    }
+
+    persistencePatterns = config.patterns;
+  }
+
 
   const decisions = [];
   const counts = { block: 0, alert: 0, record: 0 };
@@ -36,7 +59,9 @@ export async function runXdr({ root, moduleKey, writeError = (line) => console.e
     let confidence = 0;
     let reason = '반환 형식이 아닙니다';
     try {
-      const out = await loaded.decide(alert);
+      const out = moduleKey === 'persistence'
+        ? await loaded.decide(alert, persistencePatterns)
+        : await loaded.decide(alert);
       if (isDecision(out)) {
         action = out.action;
         confidence = out.confidence;
